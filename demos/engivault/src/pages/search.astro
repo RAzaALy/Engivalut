@@ -60,12 +60,17 @@ if (query) {
 			);
 			collections.forEach((collection, i) => {
 				for (const entry of tagHits[i]) {
-					const key = `${collection}:${entry.id}`;
+					// Use data.id (the same field getTermsForEntries expects
+					// everywhere else in this site), not the top-level
+					// entry.id — under a taxonomy-JOIN where-filter that one
+					// isn't reliably the row's ULID.
+					const entryId = typeof entry.data.id === "string" ? entry.data.id : entry.id;
+					const key = `${collection}:${entryId}`;
 					if (seen.has(key)) continue;
 					seen.add(key);
 					merged.push({
 						collection,
-						id: entry.id,
+						id: entryId,
 						title: typeof entry.data.title === "string" ? entry.data.title : null,
 						snippet: null,
 						matchedTagLabel: matchedTag.label,

@@ -22,10 +22,14 @@ if (!adr) return Astro.redirect("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 const { siteTitle } = resolveSiteIdentity(await getSiteSettings());
+// ADRs have no short plain-text field (only rich-text sections), so build a
+// one-line fallback description from real fields rather than leaving it to
+// the generic site tagline.
 const seo = getSeoMeta(adr, {
 	siteTitle,
 	siteUrl: Astro.url.origin,
 	path: Astro.url.pathname.replace(/\/$/, ""),
+	defaultDescription: `Architecture decision (${adr.data.decision_status}): ${adr.data.title}.`,
 });
 
 const tags = adr.data.terms?.tag ?? [];

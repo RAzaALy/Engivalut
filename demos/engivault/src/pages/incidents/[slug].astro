@@ -27,6 +27,7 @@ const seo = getSeoMeta(incident, {
 	siteTitle,
 	siteUrl: Astro.url.origin,
 	path: Astro.url.pathname.replace(/\/$/, ""),
+	defaultDescription: incident.data.summary ?? undefined,
 });
 
 const tags = incident.data.terms?.tag ?? [];
