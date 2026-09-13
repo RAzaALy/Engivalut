@@ -1,0 +1,459 @@
+/**
+ * Custom Image Node for TipTap
+ *
+ * Provides a selectable, editable image with:
+ * - Click to select
+ * - Visual selection indicator
+ * - Quick inline alt text editing
+ * - Full detail panel for advanced settings
+ * - Delete/replace options
+ */
+
+import { Button, Input } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
+import { Trash, Pencil, X, Check, SlidersHorizontal } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
+import type { NodeViewProps } from "@tiptap/react";
+import { Node, mergeAttributes } from "@tiptap/react";
+import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
+import * as React from "react";
+
+import { fetchMediaItem } from "../../lib/api/media.js";
+import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
+import { cn } from "../../lib/utils";
+import type { ImageAttributes, ImagePanelAttributes } from "./ImageDetailPanel";
+
+// Extend the Commands interface to include setImage
+declare module "@tiptap/react" {
+	interface Commands<ReturnType> {
+		image: {
+			setImage: (options: {
+				src: string;
+				alt?: string;
+				title?: string;
+				caption?: string;
+				mediaId?: string;
+				/** Provider ID for external media (e.g., "cloudflare-images") */
+				provider?: string;
+				width?: number;
+				height?: number;
+				/** LQIP blurhash placeholder */
+				blurhash?: string;
+				/** LQIP dominant-color placeholder */
+				dominantColor?: string;
+				displayWidth?: number;
+				displayHeight?: number;
+				alignment?: "left" | "center" | "right" | "wide" | "full";
+			}) => ReturnType;
+		};
+	}
+}
+
+// React component for the image node view
+function ImageNodeView({
+	node,
+	updateAttributes,
+	selected,
+	deleteNode,
+	editor,
+	getPos,
+}: NodeViewProps) {
+	const { t } = useLingui();
+	const [isEditingAlt, setIsEditingAlt] = React.useState(false);
+	const [altText, setAltText] = React.useState(node.attrs.alt || "");
+	const mediaId =
+		typeof node.attrs.mediaId === "string" &&
+		node.attrs.mediaId &&
+		canonicalMediaProviderId(node.attrs.provider) === "local"
+			? node.attrs.mediaId
+			: null;
+	const { data: currentMedia } = useQuery({
+		queryKey: ["media", mediaId],
+		queryFn: ({ signal }) => fetchMediaItem(mediaId!, { signal }),
+		enabled: mediaId !== null,
+	});
+	const storedSrc = typeof node.attrs.src === "string" ? node.attrs.src : "";
+	const displaySrc = getMediaPreviewUrl(currentMedia?.url || storedSrc, currentMedia?.contentHash);
+
+	/** Whether this node currently has its sidebar panel open */
+	const sidebarOpenRef = React.useRef(false);
+	const nodeKeyRef = React.useRef({});
+
+	const handleSaveAlt = () => {
+		updateAttributes({ alt: altText });
+		setIsEditingAlt(false);
+	};
+
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter") {
+			e.preventDefault();
+			handleSaveAlt();
+		} else if (e.key === "Escape") {
+			setAltText(node.attrs.alt || "");
+			setIsEditingAlt(false);
+		}
+	};
+
+	// Sync local alt text state when node attributes change
+	React.useEffect(() => {
+		setAltText(node.attrs.alt || "");
+	}, [node.attrs.alt]);
+
+	const handlePointerDown = (event: React.PointerEvent) => {
+		if (!editor.isEditable || !event.isPrimary || event.button !== 0) return;
+		const position = getPos();
+		if (typeof position === "number") {
+			editor.commands.setNodeSelection(position);
+		}
+	};
+
+	const getImageAttrs = (): ImagePanelAttributes => ({
+		nodeKey: nodeKeyRef.current,
+		src: node.attrs.src,
+		alt: node.attrs.alt,
+		title: node.attrs.title,
+		caption: node.attrs.caption,
+		mediaId: node.attrs.mediaId,
+		provider: node.attrs.provider,
+		width: node.attrs.width,
+		height: node.attrs.height,
+		blurhash: node.attrs.blurhash,
+		dominantColor: node.attrs.dominantColor,
+		displayWidth: node.attrs.displayWidth,
+		displayHeight: node.attrs.displayHeight,
+		alignment: node.attrs.alignment,
+	});
+
+	const openSidebar = () => {
+		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).image;
+		const onOpen = storage?.onOpenBlockSidebar as
+			| ((panel: {
+					type: "image";
+					attrs: ImagePanelAttributes;
+					onUpdate: (attrs: Partial<ImageAttributes>) => void;
+					onReplace: (attrs: ImageAttributes) => void;
+					onDelete: () => void;
+					onClose: () => void;
+			  }) => void)
+			| null;
+		if (onOpen) {
+			sidebarOpenRef.current = true;
+			onOpen({
+				type: "image",
+				attrs: getImageAttrs(),
+				onUpdate: (attrs: Partial<ImageAttributes>) => updateAttributes(attrs),
+				onReplace: (attrs: ImageAttributes) => updateAttributes(attrs),
+				onDelete: () => deleteNode(),
+				onClose: () => {
+					sidebarOpenRef.current = false;
+				},
+			});
+		}
+	};
+
+	const closeSidebar = () => {
+		if (!sidebarOpenRef.current) return;
+		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).image;
+		const onClose = storage?.onCloseBlockSidebar as (() => void) | null;
+		if (onClose) {
+			onClose();
+			sidebarOpenRef.current = false;
+		}
+	};
+
+	const toggleSidebar = () => {
+		if (sidebarOpenRef.current) {
+			closeSidebar();
+		} else {
+			openSidebar();
+		}
+	};
+
+	// Close sidebar when this node is deselected
+	React.useEffect(() => {
+		if (!selected) {
+			closeSidebar();
+		}
+	}, [selected]);
+
+	const alignment = node.attrs.alignment as
+		| "left"
+		| "center"
+		| "right"
+		| "wide"
+		| "full"
+		| undefined;
+	// Mirror the published <Image> layout so the editor is WYSIWYG: left/right
+	// float (text wraps), center/wide/full size the block.
+	const alignmentStyle: React.CSSProperties =
+		alignment === "center" ? { width: "fit-content", marginInline: "auto" } : {};
+	const { width, height, displayWidth, displayHeight } = node.attrs as ImageAttributes;
+	const aspectRatio = width && height ? width / height : undefined;
+	let renderWidth = width;
+	let renderHeight = height;
+	if (displayWidth && displayHeight) {
+		renderWidth = displayWidth;
+		renderHeight = displayHeight;
+	} else if (displayWidth && aspectRatio) {
+		renderWidth = displayWidth;
+		renderHeight = Math.round(displayWidth / aspectRatio);
+	} else if (displayHeight && aspectRatio) {
+		renderWidth = Math.round(displayHeight * aspectRatio);
+		renderHeight = displayHeight;
+	}
+
+	return (
+		<NodeViewWrapper
+			style={alignmentStyle}
+			onPointerDown={handlePointerDown}
+			className={cn(
+				"relative my-4 max-w-full",
+				(alignment === "left" || alignment === "right") &&
+					"w-full min-[641px]:w-fit min-[641px]:max-w-1/2",
+				alignment === "left" && "min-[641px]:[float:left] min-[641px]:me-6",
+				alignment === "right" && "min-[641px]:[float:right] min-[641px]:ms-6",
+				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
+			)}
+		>
+			<figure className="relative my-0!">
+				<img
+					src={displaySrc}
+					alt={node.attrs.alt || ""}
+					title={node.attrs.title || ""}
+					className="rounded-lg max-w-full h-auto"
+					width={renderWidth}
+					height={renderHeight}
+					style={{
+						aspectRatio:
+							renderWidth && renderHeight ? `${renderWidth} / ${renderHeight}` : undefined,
+					}}
+					draggable={false}
+				/>
+
+				{/* Selection overlay with actions */}
+				{selected && (
+					<div className="absolute top-2 end-2 flex gap-1">
+						<Button
+							type="button"
+							variant="secondary"
+							shape="square"
+							className="h-8 w-8"
+							onMouseDown={(e) => e.preventDefault()}
+							onClick={() => setIsEditingAlt(true)}
+							title={t`Quick edit alt text`}
+							aria-label={t`Quick edit alt text`}
+						>
+							<Pencil className="h-4 w-4" />
+						</Button>
+						<Button
+							type="button"
+							variant="secondary"
+							shape="square"
+							className="h-8 w-8"
+							onMouseDown={(e) => e.preventDefault()}
+							onClick={toggleSidebar}
+							title={t`Image settings`}
+							aria-label={t`Image settings`}
+						>
+							<SlidersHorizontal className="h-4 w-4" />
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							shape="square"
+							className="h-8 w-8"
+							onMouseDown={(e) => e.preventDefault()}
+							onClick={() => deleteNode()}
+							title={t`Delete image`}
+							aria-label={t`Delete image`}
+						>
+							<Trash className="h-4 w-4" />
+						</Button>
+					</div>
+				)}
+
+				{/* Quick alt text editor (inline) */}
+				{isEditingAlt && (
+					<div className="absolute bottom-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-3 rounded-b-lg border-t">
+						<label className="text-xs font-medium text-kumo-subtle mb-1 block">{t`Alt text`}</label>
+						<div className="flex gap-2">
+							<Input
+								type="text"
+								value={altText}
+								onChange={(e) => setAltText(e.target.value)}
+								onKeyDown={handleKeyDown}
+								placeholder={t`Describe the image...`}
+								className="flex-1 h-8 text-sm"
+								autoFocus
+							/>
+							<Button
+								type="button"
+								variant="ghost"
+								shape="square"
+								className="h-8 w-8"
+								onMouseDown={(e) => e.preventDefault()}
+								onClick={() => {
+									setAltText(node.attrs.alt || "");
+									setIsEditingAlt(false);
+								}}
+								title={t`Cancel`}
+								aria-label={t`Cancel`}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+							<Button
+								type="button"
+								variant="primary"
+								shape="square"
+								className="h-8 w-8"
+								onMouseDown={(e) => e.preventDefault()}
+								onClick={handleSaveAlt}
+								title={t`Save`}
+								aria-label={t`Save alt text`}
+							>
+								<Check className="h-4 w-4" />
+							</Button>
+						</div>
+					</div>
+				)}
+
+				{/* Caption only — must mirror the published renderer (Image.astro) */}
+				{!isEditingAlt && node.attrs.caption && (
+					<figcaption className="text-center text-sm text-kumo-subtle mt-2">
+						{node.attrs.caption}
+					</figcaption>
+				)}
+			</figure>
+		</NodeViewWrapper>
+	);
+}
+
+// Custom Image extension with React NodeView
+export const ImageExtension = Node.create({
+	name: "image",
+
+	addOptions() {
+		return {
+			inline: false,
+			allowBase64: false,
+			HTMLAttributes: {},
+		};
+	},
+
+	addStorage() {
+		return {
+			/** Callback set by PortableTextEditor to open image settings in the content sidebar */
+			onOpenBlockSidebar: null as
+				| ((panel: {
+						type: "image";
+						attrs: import("./ImageDetailPanel").ImagePanelAttributes;
+						onUpdate: (attrs: Partial<import("./ImageDetailPanel").ImageAttributes>) => void;
+						onReplace: (attrs: import("./ImageDetailPanel").ImageAttributes) => void;
+						onDelete: () => void;
+						onClose: () => void;
+				  }) => void)
+				| null,
+			/** Callback set by PortableTextEditor to close the sidebar */
+			onCloseBlockSidebar: null as (() => void) | null,
+		};
+	},
+
+	inline() {
+		return this.options.inline;
+	},
+
+	group() {
+		return this.options.inline ? "inline" : "block";
+	},
+
+	draggable: true,
+
+	addAttributes() {
+		return {
+			src: {
+				default: null,
+			},
+			alt: {
+				default: null,
+			},
+			title: {
+				default: null,
+			},
+			caption: {
+				default: null,
+			},
+			mediaId: {
+				default: null,
+			},
+			/** Provider ID for external media (e.g., "cloudflare-images") */
+			provider: {
+				default: null,
+			},
+			width: {
+				default: null,
+			},
+			height: {
+				default: null,
+			},
+			blurhash: {
+				default: null,
+			},
+			dominantColor: {
+				default: null,
+			},
+			displayWidth: {
+				default: null,
+			},
+			displayHeight: {
+				default: null,
+			},
+			alignment: {
+				default: null,
+			},
+		};
+	},
+
+	parseHTML() {
+		return [
+			{
+				tag: "img[src]",
+			},
+		];
+	},
+
+	renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, unknown> }) {
+		return ["img", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes)];
+	},
+
+	addNodeView() {
+		return ReactNodeViewRenderer(ImageNodeView);
+	},
+
+	addCommands() {
+		return {
+			setImage:
+				(options: {
+					src: string;
+					alt?: string;
+					title?: string;
+					caption?: string;
+					mediaId?: string;
+					provider?: string;
+					width?: number;
+					height?: number;
+					blurhash?: string;
+					dominantColor?: string;
+					displayWidth?: number;
+					displayHeight?: number;
+					alignment?: "left" | "center" | "right" | "wide" | "full";
+				}) =>
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				({ commands }: any) => {
+					return commands.insertContent({
+						type: this.name,
+						attrs: options,
+					});
+				},
+		};
+	},
+});

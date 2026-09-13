@@ -1,0 +1,63 @@
+---
+title: The plugin registry
+description: Configure and install plugins from the experimental EmDash registry.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+The plugin registry is the supported catalog for sandboxed plugins. It lets administrators browse and install plugins from the EmDash admin panel. Review the publisher, selected version, and requested permissions before installing a plugin.
+
+<Aside type="caution" title="Experimental">
+	Registry configuration can change in a minor release. Pin `emdash` to an exact version while
+	using the registry, and read its changelog before upgrading. EmDash runs the hosted registry at
+	`https://registry.emdashcms.com`.
+</Aside>
+
+When `experimental.registry` is configured, the admin panel displays a **Registry** section for browsing and installing plugins.
+
+## Enable the registry
+
+To install plugins from the registry, configure storage and an available sandbox runner. Complete the platform-specific [plugin sandbox setup](/deployment/plugin-sandbox/) first.
+
+Add the hosted registry and Cloudflare sandbox runner to the `emdash()` configuration in `astro.config.mjs`:
+
+```typescript title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import { sandbox } from "@emdash-cms/cloudflare";
+import emdash from "emdash/astro";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			sandboxRunner: sandbox(),
+			experimental: {
+				registry: "https://registry.emdashcms.com",
+			},
+		}),
+	],
+});
+```
+
+Use the bare hosted registry URL for the normal setup. See the [`experimental.registry` configuration reference](/reference/configuration/#experimentalregistry) for custom registry settings.
+
+## Install a registry plugin
+
+<Steps>
+
+1. Open **Registry** in the admin panel.
+2. Search for a plugin and open its detail page.
+3. Select a release and review its publisher, metadata, requested permissions, and verification status.
+4. Select **Install**.
+5. Review the verification status and permissions in the consent dialog, then confirm.
+
+</Steps>
+
+Before showing the consent dialog, EmDash checks the downloaded bundle's checksum, name, version, and permissions. If the publisher requires build provenance, EmDash verifies that evidence too. Installation stops if a check fails. The consent dialog shows the verification status and exact permissions before installation.
+
+Registry updates repeat these checks. An update waits for confirmation when it adds permissions or MCP tools, or changes a route from authenticated to public. Uninstalling removes the bundle and preserves plugin storage data unless you select **Also delete plugin storage data**. See [Installing plugins](/plugins/installing/#update-a-plugin) for the shared update and uninstall steps.
+
+## Related pages
+
+- [Querying the registry](/plugins/registry-client/) documents the experimental read-only discovery client.
+- [Bundling and publishing](/plugins/creating-plugins/publishing/) covers publishing a sandboxed plugin.
+- [Capabilities and security](/plugins/creating-plugins/capabilities/) describes the sandbox permission model.

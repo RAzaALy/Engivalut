@@ -1,0 +1,192 @@
+# create-emdash
+
+## 0.37.0
+
+### Patch Changes
+
+- [#2627](https://github.com/emdash-cms/emdash/pull/2627) [`c841796`](https://github.com/emdash-cms/emdash/commit/c841796f90765ac1ebce72f8df42ae33a3a136ca) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fixes `create-emdash --install` failing for Cloudflare templates whose Wrangler version requires `@cloudflare/workers-types` 5. Package-manager output is streamed; any remaining install failure keeps the generated files, prints a retry command, and exits nonzero.
+
+## 0.36.0
+
+## 0.35.0
+
+## 0.34.0
+
+## 0.33.0
+
+## 0.32.0
+
+## 0.31.1
+
+## 0.31.0
+
+## 0.30.0
+
+## 0.29.0
+
+## 0.28.1
+
+## 0.28.0
+
+## 0.27.0
+
+## 0.26.0
+
+## 0.25.1
+
+## 0.25.0
+
+## 0.24.1
+
+## 0.24.0
+
+## 0.23.0
+
+## 0.22.0
+
+## 0.21.0
+
+## 0.20.0
+
+### Patch Changes
+
+- [#1403](https://github.com/emdash-cms/emdash/pull/1403) [`34dd430`](https://github.com/emdash-cms/emdash/commit/34dd430b35032535a972e9ed718c0eacaeae2029) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Scaffold local secrets into `.env` for every platform, including Cloudflare — previously Cloudflare projects got `.dev.vars`.
+
+  Since August 2025, Wrangler and the Cloudflare Vite plugin read `.env` files in local development, so there's no longer a reason to split Node (`.env`) and Workers (`.dev.vars`). New projects now write `EMDASH_ENCRYPTION_KEY` to a single `.env` file regardless of platform, matching the dotenv convention most developers already expect.
+
+  **This is a deliberate, pre-1.0 hard switch away from `.dev.vars`.** It's called out as a minor bump rather than a patch because the scaffolded file changes name and the surrounding docs/guidance change with it.
+
+  **Backwards compatibility / upgrade notes:**
+  - Existing projects are unaffected — a `.dev.vars` you already have keeps working; Wrangler still reads it.
+  - Wrangler loads **either** `.dev.vars` **or** `.env`, never both: if a `.dev.vars` file is present its values win and `.env` is ignored entirely. If you migrate an existing project to `.env`, move your secrets across and delete `.dev.vars`, otherwise the new `.env` is silently shadowed.
+  - When scaffolding into a directory that still contains a `.dev.vars`, `create-emdash` now prints a warning explaining the shadowing rule so the encryption key actually loads.
+
+  `emdash secrets generate --write` already accepted any path and is unchanged; only the documented/suggested target moves to `.env`.
+
+## 0.19.0
+
+## 0.18.0
+
+## 0.17.2
+
+## 0.17.1
+
+## 0.17.0
+
+## 0.16.1
+
+## 0.16.0
+
+## 0.15.0
+
+## 0.14.0
+
+### Patch Changes
+
+- [#1115](https://github.com/emdash-cms/emdash/pull/1115) [`792f73c`](https://github.com/emdash-cms/emdash/commit/792f73c12c32e9119c4bdab52dad705638d11ae9) Thanks [@ascorbic](https://github.com/ascorbic)! - Pins `packageManager` for pnpm-scaffolded sites so a recent enough pnpm is used (settings-only `pnpm-workspace.yaml` requires pnpm 10.5+). For npm, yarn, or bun selections the field is stripped so corepack doesn't force pnpm on a non-pnpm user.
+
+## 0.13.0
+
+## 0.12.0
+
+## 0.11.1
+
+## 0.11.0
+
+## 0.10.0
+
+### Patch Changes
+
+- [#900](https://github.com/emdash-cms/emdash/pull/900) [`b3d1f40`](https://github.com/emdash-cms/emdash/commit/b3d1f40b3a22c38570aaf284435dd7adc4e9d714) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fixes interactive `Project name?` prompt to accept `.` for the current directory. The flag-positional path already accepted `.` (validated by `validateProjectName`), but the prompt's inline regex check rejected it, so users running `npm create emdash@latest` with no arguments could not scaffold into the current directory. The prompt now uses `validateProjectName` directly for parity, and its message hints at the `.` option.
+
+## 0.9.0
+
+### Minor Changes
+
+- [#859](https://github.com/emdash-cms/emdash/pull/859) [`3015280`](https://github.com/emdash-cms/emdash/commit/301528075e1ca7b96589a6eed31a97d9cdfbb7f7) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Adds non-interactive mode to `create-emdash` for CI / scripted scaffolding (#711). Pass `--template`, `--platform`, `--pm`, `--install`/`--no-install`, `--yes`, and `--force` to skip prompts; partial flag use only prompts for unset fields. Interactive flow is unchanged when no flags are supplied.
+  - `--template <key>` accepts a bare template (`blog | starter | marketing | portfolio`) or the combined form `<platform>:<key>` (e.g. `cloudflare:blog`).
+  - `--pm <key>` (alias `--package-manager`) selects the package manager.
+  - `--yes` / `-y` accepts defaults for any unset field (cloudflare, blog, detected pm, `my-site` for an unset name).
+  - `--force` is required alongside `--yes` to overwrite a non-empty target directory; without it, the CLI refuses rather than silently clobbering files.
+  - `--help` / `-h` prints usage. Unknown flags fail loudly so typos don't silently drop into interactive mode.
+  - An extra positional argument (e.g. `npm create emdash my blog` with a space instead of a hyphen) is now rejected as a likely typo.
+
+  No new dependencies — built on `node:util`'s `parseArgs`.
+
+- [#811](https://github.com/emdash-cms/emdash/pull/811) [`cee403d`](https://github.com/emdash-cms/emdash/commit/cee403d5c008feb9ca60bb7201e151b828737743) Thanks [@ascorbic](https://github.com/ascorbic)! - Scaffolds a fresh `EMDASH_ENCRYPTION_KEY` into `.dev.vars` (Cloudflare
+  templates) or `.env` (Node templates) on project creation, and ensures the
+  file is gitignored. Idempotent — won't overwrite an existing key on re-runs.
+
+### Patch Changes
+
+- [#852](https://github.com/emdash-cms/emdash/pull/852) [`e73bb5f`](https://github.com/emdash-cms/emdash/commit/e73bb5f3b54195ad6fdb327be79bddbbf25d0f17) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Removes the "Blank" template from the `npm create emdash` picker. The minimal-content template is `starter`; the previously listed `blank` only existed for the Node.js path (never Cloudflare) and was confusing. Pick `Starter` for a minimal site on either platform.
+
+- [#869](https://github.com/emdash-cms/emdash/pull/869) [`a8bac5d`](https://github.com/emdash-cms/emdash/commit/a8bac5d7216e185b1bd9a2aaaeaa9a0306ab066e) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes autosave validation errors on content seeded from the blog,
+  portfolio, and starter templates (issue #867).
+
+  Two related issues:
+  - `_key` was strictly required on Portable Text blocks by the
+    generated Zod schema, but the rest of the block schema is
+    `.passthrough()` and the editor regenerates `_key` on every change,
+    so requiring it on input rejected legitimate seed/import data
+    without protecting any real invariant. `_key` is now optional in the
+    validator.
+  - The portfolio template shipped `featured_image` as bare URL strings.
+    `image` fields validate as `{ id, ... }` objects, so any user who
+    edited a different field on a portfolio entry hit
+    `featured_image: expected object, received string`. The portfolio
+    seeds now use `$media` references in the same shape as the blog
+    template, and every shipped template seed has stable `_key`s on its
+    Portable Text nodes.
+
+  A regression test runs every shipped template seed through the same
+  validator the autosave endpoint uses, so future template changes that
+  break this invariant fail before release.
+
+## 0.8.0
+
+### Minor Changes
+
+- [#785](https://github.com/emdash-cms/emdash/pull/785) [`e0dd616`](https://github.com/emdash-cms/emdash/commit/e0dd61680674d111814df9033e44d500b65c9562) Thanks [@MattieTK](https://github.com/MattieTK)! - Adds support for positional directory argument, allowing `npm create emdash .` to scaffold into the current directory and `npm create emdash my-project` to skip the interactive name prompt.
+
+## 0.7.0
+
+## 0.6.0
+
+## 0.5.0
+
+## 0.4.0
+
+## 0.3.0
+
+## 0.2.0
+
+## 0.1.0
+
+### Minor Changes
+
+- [#14](https://github.com/emdash-cms/emdash/pull/14) [`755b501`](https://github.com/emdash-cms/emdash/commit/755b5017906811f97f78f4c0b5a0b62e67b52ec4) Thanks [@ascorbic](https://github.com/ascorbic)! - First beta release
+
+### Patch Changes
+
+- [#12](https://github.com/emdash-cms/emdash/pull/12) [`9db4c2c`](https://github.com/emdash-cms/emdash/commit/9db4c2cba24d5202fba630ac366ae42cf721390f) Thanks [@ascorbic](https://github.com/ascorbic)! - Remove manual bootstrap step from CLI output
+
+  The create-emdash CLI no longer suggests running `bootstrap` as a manual step, since EmDash now auto-bootstraps on first run.
+
+## 0.0.4
+
+### Patch Changes
+
+- [#7](https://github.com/emdash-cms/emdash/pull/7) [`2022b77`](https://github.com/emdash-cms/emdash/commit/2022b773414a34de05677c776f4f4324f43a54e2) Thanks [@ascorbic](https://github.com/ascorbic)! - Fix spinner hanging during dependency installation by using async exec instead of execSync, which was blocking the event loop and preventing the spinner animation from updating.
+
+## 0.0.3
+
+### Patch Changes
+
+- [#5](https://github.com/emdash-cms/emdash/pull/5) [`8e389d5`](https://github.com/emdash-cms/emdash/commit/8e389d5ef8b0a6b0577d9d7c975f048f96844185) Thanks [@ascorbic](https://github.com/ascorbic)! - Improve create-emdash CLI experience: add the EmDash branded banner, let users pick their package manager (auto-detects the one that invoked it), and ask whether to install dependencies with a spinner showing progress.
+
+## 0.0.2
+
+### Patch Changes
+
+- [#3](https://github.com/emdash-cms/emdash/pull/3) [`2dc5815`](https://github.com/emdash-cms/emdash/commit/2dc5815f031459c48cfaffec84aea1ed7b9cf7fb) Thanks [@ascorbic](https://github.com/ascorbic)! - Fix create-emdash to use all available templates from the new standalone templates repo. Templates are now selected in two steps: platform (Node.js or Cloudflare Workers) then template type (blog, starter, marketing, portfolio, blank). Downloads from `emdash-cms/templates` instead of the old monorepo path.

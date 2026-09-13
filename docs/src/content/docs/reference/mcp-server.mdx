@@ -1,0 +1,286 @@
+---
+title: MCP Server Reference
+description: Authentication, protocol behavior, and the complete tool inventory for the MCP server.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+EmDash exposes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server at `/_emdash/api/mcp`. MCP clients use it to read and manage content, bylines, schemas, media, taxonomies, menus, revisions, and settings.
+
+<Aside>
+	To connect Claude, ChatGPT, or another AI client, follow the [AI tools guide](/guides/ai-tools/).
+</Aside>
+
+## Authentication
+
+The MCP endpoint requires a Bearer token. EmDash supports these token flows:
+
+| Method | Use |
+| --- | --- |
+| OAuth 2.1 Authorization Code with Proof Key for Code Exchange (PKCE) | Interactive MCP clients. The user approves the requested scopes in a browser. |
+| Personal access token | Long-lived access for a client or automation. Tokens use the `ec_pat_` prefix and are created in the admin. |
+| OAuth 2.0 Device Authorization Grant | Command-line clients that ask the user to approve a code in a browser. `emdash login` uses this flow. |
+
+Session cookies do not authenticate the MCP endpoint.
+
+### Scopes
+
+OAuth and personal access tokens limit which tools a client can call. The user's role is checked separately, so a scope never grants a permission the user does not have.
+
+| Scope | Access |
+| --- | --- |
+| `content:read` | Read and search content, bylines, taxonomies, terms, menus, and revisions. Draft-like content also requires the user's `content:read_drafts` permission. |
+| `content:write` | Create and change content, bylines, and revisions. It also grants `taxonomies:manage` and `menus:manage` for compatibility with existing tokens. |
+| `media:read` | Read media records. |
+| `media:write` | Upload, register, update, and delete media. |
+| `schema:read` | Read collections and fields. |
+| `schema:write` | Create, update, and delete collections and fields. |
+| `taxonomies:manage` | Create, update, and delete taxonomy definitions and terms. |
+| `menus:manage` | Create, update, and delete menus and menu items. |
+| `settings:read` | Read site settings. |
+| `settings:manage` | Update site settings. |
+| `mcp:tools` | Call MCP tools exposed by any enabled plugin. |
+| `mcp:tools:<pluginId>` | Call MCP tools exposed by one enabled plugin. |
+| `admin` | Call every core tool. Plugin tools still require `mcp:tools` or the plugin-specific scope. |
+
+The authorization-code consent page lets the user remove requested scopes. EmDash also intersects the request with the client's registered scopes and the user's role, and refuses an empty grant.
+
+### Role requirements
+
+The following table shows the minimum role for the broad capability. Ownership checks can require a higher role when a user acts on another user's content.
+
+| Capability | Minimum role |
+| --- | --- |
+| Read published content, media, taxonomies, terms, and menus | Subscriber |
+| Read drafts, scheduled content, trash, comparisons, and revisions | Contributor |
+| Create content or upload media | Contributor |
+| Edit or publish owned content and register media | Author |
+| Manage bylines, taxonomies, menus, or all users' content | Editor |
+| Read schemas or settings | Editor |
+| Change schemas or settings, permanently delete content, or repair media usage | Admin |
+
+See [user roles](/guides/authentication/#user-roles) for the complete role definitions.
+
+## Transport
+
+The server uses stateless Streamable HTTP. Each request is independent; the server does not keep an MCP session or a Server-Sent Events connection.
+
+| Method | Endpoint | Behavior |
+| --- | --- | --- |
+| `POST` | `/_emdash/api/mcp` | Accepts JSON-RPC initialization, tool listing, and tool calls. |
+| `GET` | `/_emdash/api/mcp` | Returns `405 Method Not Allowed`. |
+| `DELETE` | `/_emdash/api/mcp` | Returns `405 Method Not Allowed`. |
+
+Responses use [JSON-RPC 2.0](https://www.jsonrpc.org/specification). Call `tools/list` to obtain the current input schemas and MCP annotations before constructing a tool request.
+
+## Tool inventory
+
+The following inventory matches the static tools returned by `tools/list`. The registered title is included because clients may display it instead of the tool name.
+
+{/* mcp-tool-inventory:start */}
+
+### Content tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `content_list` | List Content | `content:read` |
+| `content_get` | Get Content | `content:read` |
+| `content_create` | Create Content | `content:write` |
+| `content_update` | Update Content | `content:write` |
+| `content_delete` | Delete Content (Trash) | `content:write` |
+| `content_restore` | Restore Content | `content:write` |
+| `content_permanent_delete` | Permanently Delete Content | `content:write` |
+| `content_publish` | Publish Content | `content:write` |
+| `content_unpublish` | Unpublish Content | `content:write` |
+| `content_schedule` | Schedule Content | `content:write` |
+| `content_unschedule` | Cancel Scheduled Publication | `content:write` |
+| `content_compare` | Compare Live vs Draft | `content:read` |
+| `content_discard_draft` | Discard Draft | `content:write` |
+| `content_list_trashed` | List Trashed Content | `content:read` |
+| `content_duplicate` | Duplicate Content | `content:write` |
+| `content_translations` | Get Content Translations | `content:read` |
+
+### Byline tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `byline_list` | List Bylines | `content:read` |
+| `byline_get` | Get Byline | `content:read` |
+| `byline_create` | Create Byline | `content:write` |
+| `byline_update` | Update Byline | `content:write` |
+| `byline_delete` | Delete Byline | `content:write` |
+| `byline_translations` | List Byline Translations | `content:read` |
+
+### Schema tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `schema_list_collections` | List Collections | `schema:read` |
+| `schema_get_collection` | Get Collection Schema | `schema:read` |
+| `schema_create_collection` | Create Collection | `schema:write` |
+| `schema_delete_collection` | Delete Collection | `schema:write` |
+| `schema_update_collection` | Update Collection | `schema:write` |
+| `schema_create_field` | Add Field to Collection | `schema:write` |
+| `schema_delete_field` | Remove Field from Collection | `schema:write` |
+| `schema_update_field` | Update Field | `schema:write` |
+
+### Media tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `media_list` | List Media | `media:read` |
+| `media_create` | Register Uploaded Media | `media:write` |
+| `media_upload` | Upload Media | `media:write` |
+| `media_get` | Get Media Item | `media:read` |
+| `media_update` | Update Media Metadata | `media:write` |
+| `media_delete` | Delete Media | `media:write` |
+| `media_usage_repair` | Repair Media Usage Index | `admin` |
+
+### Search tool
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `search` | Search Content | `content:read` |
+
+### Taxonomy tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `taxonomy_list` | List Taxonomies | `content:read` |
+| `taxonomy_get` | Get Taxonomy Definition | `content:read` |
+| `taxonomy_create` | Create Taxonomy Definition | `taxonomies:manage` |
+| `taxonomy_update` | Update Taxonomy Definition | `taxonomies:manage` |
+| `taxonomy_delete` | Delete Taxonomy Definition | `taxonomies:manage` |
+| `taxonomy_list_terms` | List Taxonomy Terms | `content:read` |
+| `taxonomy_create_term` | Create Taxonomy Term | `taxonomies:manage` |
+| `taxonomy_update_term` | Update Taxonomy Term | `taxonomies:manage` |
+| `taxonomy_delete_term` | Delete Taxonomy Term | `taxonomies:manage` |
+| `taxonomy_term_translations` | List Term Translations | `content:read` |
+
+### Menu tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `menu_list` | List Menus | `content:read` |
+| `menu_get` | Get Menu with Items | `content:read` |
+| `menu_translations` | List Menu Translations | `content:read` |
+| `menu_create` | Create Menu | `menus:manage` |
+| `menu_update` | Update Menu | `menus:manage` |
+| `menu_delete` | Delete Menu | `menus:manage` |
+| `menu_set_items` | Set Menu Items | `menus:manage` |
+
+### Revision tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `revision_list` | List Revisions | `content:read` |
+| `revision_restore` | Restore Revision | `content:write` |
+
+### Settings tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `settings_get` | Get Site Settings | `settings:read` |
+| `settings_update` | Update Site Settings | `settings:manage` |
+
+{/* mcp-tool-inventory:end */}
+
+## Use the tool schemas
+
+`tools/list` returns each tool's description, JSON input schema, and annotations. Read that metadata before constructing a call so your client uses the fields, allowed values, and limits supported by the installed EmDash version.
+
+For example, a client updating an article first calls `content_get` and keeps the returned `_rev`. It can then send this JSON-RPC request:
+
+```json
+{
+	"jsonrpc": "2.0",
+	"id": 2,
+	"method": "tools/call",
+	"params": {
+		"name": "content_update",
+		"arguments": {
+			"collection": "articles",
+			"id": "01JARTICLE0000000000000000",
+			"data": { "title": "Updated title" },
+			"_rev": "opaque-revision-token"
+		}
+	}
+}
+```
+
+The result is returned as JSON text in the first content block. A tool with an output schema may also return the same value in `structuredContent`.
+
+## Content lifecycle and bylines
+
+`content_get` returns an opaque `_rev` value. Pass it to `content_update`, `content_publish`, `content_unpublish`, or `content_discard_draft`. A stale value returns a conflict, so read the item again before retrying.
+
+`content_update` is a partial update: omitted fields keep their current values. Updating a published item stages a draft while the live version remains unchanged. Use `content_compare` to review the live and draft values, then call `content_publish` to make the draft live or `content_discard_draft` to remove it. `content_delete` moves an item to trash; only `content_permanent_delete` removes a trashed item permanently.
+
+Bylines are reusable author or contributor credits. `byline_create` can create a guest credit or link a byline to a CMS user. Pass the returned byline ID in the `bylines` input accepted by `content_create` and `content_update`. Deleting a byline removes that credit from content and clears it as the primary byline.
+
+MCP writes do not participate in the admin's [entry edit lock](/reference/rest-api/#entry-edit-lock). The `_rev` check protects the operations that accept it, but other write tools can change an entry while an editor has it open.
+
+## Translations
+
+Content, byline, taxonomy term, and menu translation tools return every locale variant in the relevant translation group. Use the creation tool's `translationOf` input when its schema provides one; `tools/list` is authoritative for the required fields.
+
+`content_translations` accepts a collection and content ID or slug. The byline, taxonomy-term, and menu translation tools accept either one record's ID or the shared translation-group ID. A user without draft access sees only published content translations.
+
+## Schemas, media, taxonomies, and menus
+
+Schema tools change the database structure. Use `schema_get_collection` before creating content or changing fields; it returns the available field names, types, constraints, and validation rules. Collection and field deletion remove stored content or field values and cannot be undone.
+
+Use `media_upload` to send base64-encoded bytes or fetch a public HTTP or HTTPS URL. URL uploads reject private-network destinations and re-check redirects. Use `media_create` only when the file already exists at the supplied storage key and you need to register its metadata. Uploads are subject to the configured size and MIME-type limits, and identical bytes may return an existing media item with `deduplicated: true`.
+
+Taxonomy definitions describe the classification and the collections it applies to; terms are the individual values assigned to content. Hierarchical terms can use `parentId`, but a parent must belong to the same taxonomy and cannot create a cycle. A term with children must have those children removed or moved before deletion.
+
+`menu_set_items` replaces a menu's complete item list in one atomic operation. The array order becomes the menu order. A nested item's `parentIndex` points to an earlier item in the same array, so place every parent before its children.
+
+`media_usage_repair` can process one collection or every collection and may run for a long time on a large site. Its `complete`, `partial`, `failed`, and `stale` statuses are successful tool responses. Inspect the returned status and counts instead of relying on `isError`; authentication, validation, and unexpected execution failures set `isError: true`.
+
+<Aside type="caution">
+	Tools whose registered metadata has `destructiveHint: true` can delete stored data. Confirm the target and its current state before calling them.
+</Aside>
+
+## Plugin tools
+
+An administrator must enable each plugin's MCP surface. Enabled tools appear in `tools/list` as `<pluginId>__<localName>` and require `mcp:tools` or `mcp:tools:<pluginId>` for token-authenticated calls. EmDash also checks the permission declared by the plugin route and records the plugin, tool, route, and actor in the audit log.
+
+Because plugin tools are installation-specific, they are not part of the static inventory above.
+
+## OAuth discovery
+
+MCP clients discover the authorization server from the protected-resource metadata:
+
+```http
+GET /.well-known/oauth-protected-resource
+```
+
+The response identifies `/_emdash/api/mcp` as the protected resource and links to the authorization server. Clients then read its metadata at:
+
+```http
+GET /.well-known/oauth-authorization-server/_emdash
+```
+
+That document supplies the current authorization, token, registration, and device-authorization endpoints, supported scopes, grant types, and the `S256` PKCE method. Use the discovered values instead of hard-coding the OAuth protocol routes.
+
+An unauthenticated MCP request returns a `401` response with the discovery URL:
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource"
+```
+
+## Errors
+
+A tool failure has `isError: true`. The first text block starts with a stable code, and `_meta.code` repeats it for clients that read structured metadata:
+
+```json
+{
+	"content": [{ "type": "text", "text": "[NOT_FOUND] Collection 'articles' not found" }],
+	"isError": true,
+	"_meta": { "code": "NOT_FOUND" }
+}
+```
+
+Authentication failures use codes such as `INSUFFICIENT_SCOPE` and `INSUFFICIENT_PERMISSIONS`. Transport failures use the JSON-RPC internal-error code `-32603` and do not expose the underlying exception.
