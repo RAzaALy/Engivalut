@@ -1,0 +1,34 @@
+---
+import Base from "../layouts/Base.astro";
+import Button from "../components/Button.astro";
+import ErrorState from "../components/ErrorState.astro";
+---
+
+<Base title="Page not found">
+	<div class="container page">
+		<ErrorState
+			code="404"
+			title="Page not found"
+			description="The page you're looking for doesn't exist or may have been moved."
+		>
+			<div class="actions">
+				<Button href="/">Go home</Button>
+				<Button href="/search" variant="secondary">Search instead</Button>
+			</div>
+		</ErrorState>
+	</div>
+</Base>
+
+<style>
+	.page {
+		display: flex;
+		justify-content: center;
+		padding-block: var(--spacing-24);
+	}
+
+	.actions {
+		display: flex;
+		gap: var(--spacing-3);
+		margin-top: var(--spacing-6);
+	}
+</style>

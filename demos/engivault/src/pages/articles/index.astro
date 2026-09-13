@@ -1,0 +1,80 @@
+---
+import { getEmDashCollection, getTermsForEntries } from "emdash";
+import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import Card from "../../components/Card.astro";
+import Badge from "../../components/badges/Badge.astro";
+import TagList from "../../components/TagList.astro";
+import EmptyState from "../../components/EmptyState.astro";
+
+const { entries: articles } = await getEmDashCollection("articles", {
+	orderBy: { published_at: "desc" },
+});
+
+const tagsByEntry = await getTermsForEntries(
+	"articles",
+	articles.map((a) => a.data.id),
+	"tag",
+);
+---
+
+<Base title="Articles" description="Engineering articles, guides, and deep dives.">
+	<div class="container page">
+		<PageHeader
+			eyebrow="Knowledge Base"
+			title="Articles"
+			description="Guides and deep dives written by the engineering team."
+		/>
+
+		{
+			articles.length === 0 ? (
+				<EmptyState
+					title="No articles yet"
+					description="Published articles will appear here."
+				/>
+			) : (
+				<div class="card-grid">
+					{articles.map((article) => (
+						<Card href={`/articles/${article.id}`}>
+							{article.data.featured && (
+								<Badge slot="eyebrow" tone="brand" mono>
+									Featured
+								</Badge>
+							)}
+							<Fragment slot="title">{article.data.title}</Fragment>
+							<span slot="meta">
+								{article.data.author && <span>{article.data.author}</span>}
+							</span>
+							{article.data.summary}
+							<TagList slot="footer" tags={tagsByEntry.get(article.data.id) ?? []} />
+						</Card>
+					))}
+				</div>
+			)
+		}
+	</div>
+</Base>
+
+<style>
+	.page {
+		padding-block: var(--spacing-12) var(--spacing-24);
+	}
+
+	.card-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--spacing-6);
+	}
+
+	@media (max-width: 900px) {
+		.card-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.card-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

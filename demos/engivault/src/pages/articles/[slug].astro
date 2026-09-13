@@ -1,0 +1,259 @@
+---
+import {
+	getEmDashEntry,
+	getEmDashCollection,
+	getTermsForEntries,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import Card from "../../components/Card.astro";
+import Badge from "../../components/badges/Badge.astro";
+import TagList from "../../components/TagList.astro";
+import { resolveSiteIdentity } from "../../utils/site-identity";
+
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.redirect("/404");
+
+const { entry: article, cacheHint } = await getEmDashEntry("articles", slug);
+if (!article) return Astro.redirect("/404");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+const { siteTitle } = resolveSiteIdentity(await getSiteSettings());
+const seo = getSeoMeta(article, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: Astro.url.pathname.replace(/\/$/, ""),
+});
+
+const tags = article.data.terms?.tag ?? [];
+const category = article.data.terms?.category?.[0] ?? null;
+
+const publishDate = article.data.publishedAt?.toLocaleDateString("en-US", {
+	year: "numeric",
+	month: "long",
+	day: "numeric",
+});
+
+// Related articles: ranked by shared tags (not just "most recent"), so the
+// section reflects actual topical overlap. Ties fall back to recency since
+// both the pool and Array#sort are stable-ordered by published_at desc.
+const { entries: articlePool } = await getEmDashCollection("articles", {
+	orderBy: { published_at: "desc" },
+});
+const candidates = articlePool.filter((a) => a.id !== article.id);
+const candidateTags = await getTermsForEntries(
+	"articles",
+	candidates.map((a) => a.data.id),
+	"tag",
+);
+const tagSlugs = new Set(tags.map((t) => t.slug));
+const relatedArticles = candidates
+	.map((a) => ({
+		entry: a,
+		sharedCount: (candidateTags.get(a.data.id) ?? []).filter((t) => tagSlugs.has(t.slug)).length,
+	}))
+	.sort((a, b) => b.sharedCount - a.sharedCount)
+	.slice(0, 3)
+	.map((x) => x.entry);
+
+const breadcrumbs = [
+	{ name: "Home", url: "/" },
+	{ name: "Articles", url: "/articles" },
+	{ name: article.data.title, url: `/articles/${slug}` },
+];
+---
+
+<Base
+	title={seo.title}
+	description={seo.description}
+	canonical={seo.canonical}
+	type="article"
+	publishedTime={article.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={article.data.updatedAt.toISOString()}
+	author={article.data.author}
+	breadcrumbs={breadcrumbs}
+	content={{ collection: "articles", id: article.data.id, slug }}
+>
+	<article class="doc">
+		<div class="container">
+			<Breadcrumbs items={breadcrumbs} />
+			<header class="doc-header">
+				<div class="doc-eyebrow">
+					{category && <Badge tone="brand" mono>{category.label}</Badge>}
+					{article.data.featured && <Badge tone="neutral" mono>Featured</Badge>}
+				</div>
+				<h1 class="doc-title" {...article.edit.title}>
+					{article.data.title}
+				</h1>
+				<div class="doc-meta">
+					{article.data.author && <span>{article.data.author}</span>}
+					{publishDate && (
+						<>
+							<span class="meta-dot" />
+							<time>{publishDate}</time>
+						</>
+					)}
+				</div>
+				{article.data.summary && (
+					<p class="doc-summary" {...article.edit.summary}>
+						{article.data.summary}
+					</p>
+				)}
+			</header>
+
+			<div class="doc-content" {...article.edit.content}>
+				<PortableText value={article.data.content} />
+			</div>
+
+			{tags.length > 0 && (
+				<div class="doc-tags">
+					<TagList tags={tags} />
+				</div>
+			)}
+		</div>
+	</article>
+
+	{
+		relatedArticles.length > 0 && (
+			<section class="more" aria-labelledby="related-heading">
+				<div class="container">
+					<h2 id="related-heading" class="more-title">Related Articles</h2>
+					<div class="card-grid">
+						{relatedArticles.map((a) => (
+							<Card href={`/articles/${a.id}`}>
+								<Fragment slot="title">{a.data.title}</Fragment>
+								<span slot="meta">{a.data.author}</span>
+								{a.data.summary}
+							</Card>
+						))}
+					</div>
+				</div>
+			</section>
+		)
+	}
+</Base>
+
+<style>
+	.doc {
+		padding-block: var(--spacing-12) var(--spacing-16);
+	}
+
+	.doc-header {
+		max-width: var(--content-width);
+		margin-inline: auto;
+		margin-bottom: var(--spacing-10);
+	}
+
+	.doc-eyebrow {
+		display: flex;
+		gap: var(--spacing-2);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.doc-eyebrow:empty {
+		display: none;
+	}
+
+	.doc-title {
+		font-size: clamp(2rem, 5vw, var(--font-size-5xl));
+		margin-bottom: var(--spacing-4);
+	}
+
+	.doc-meta {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-5);
+	}
+
+	.meta-dot {
+		width: 3px;
+		height: 3px;
+		border-radius: 50%;
+		background: var(--color-muted);
+	}
+
+	.doc-summary {
+		font-size: var(--font-size-xl);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+	}
+
+	.doc-content {
+		max-width: var(--content-width);
+		margin-inline: auto;
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+	}
+
+	.doc-content :global(p) {
+		margin-bottom: 1.5em;
+	}
+
+	.doc-content :global(h2) {
+		font-size: var(--font-size-2xl);
+		margin-top: 2em;
+		margin-bottom: 0.75em;
+	}
+
+	.doc-content :global(h3) {
+		font-size: var(--font-size-xl);
+		margin-top: 1.75em;
+		margin-bottom: 0.5em;
+	}
+
+	.doc-content :global(code) {
+		font-family: var(--font-mono);
+		font-size: 0.9em;
+		background: var(--color-surface);
+		padding: 0.2em 0.4em;
+		border-radius: var(--radius);
+	}
+
+	.doc-tags {
+		max-width: var(--content-width);
+		margin-inline: auto;
+		margin-top: var(--spacing-10);
+		padding-top: var(--spacing-6);
+		border-top: 1px solid var(--color-border-subtle);
+	}
+
+	.more {
+		background: var(--color-bg-subtle);
+		border-top: 1px solid var(--color-border-subtle);
+		padding-block: var(--spacing-16);
+	}
+
+	.more-title {
+		font-size: var(--font-size-2xl);
+		margin-bottom: var(--spacing-8);
+	}
+
+	.card-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--spacing-6);
+	}
+
+	@media (max-width: 900px) {
+		.card-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.doc-title {
+			font-size: var(--font-size-3xl);
+		}
+
+		.card-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

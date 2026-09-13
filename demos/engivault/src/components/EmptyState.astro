@@ -1,0 +1,58 @@
+---
+interface Props {
+	title: string;
+	description?: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<div class="empty-state" role="status">
+	<div class="empty-icon" aria-hidden="true">
+		<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+			<rect x="3" y="3" width="18" height="18" rx="3" />
+			<path d="M8 12h8M8 16h5" stroke-linecap="round" />
+		</svg>
+	</div>
+	<p class="empty-title">{title}</p>
+	{description && <p class="empty-description">{description}</p>}
+	<slot />
+</div>
+
+<style>
+	.empty-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		padding: var(--spacing-16) var(--spacing-6);
+		border: 1px dashed var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--color-bg-subtle);
+	}
+
+	.empty-icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 48px;
+		height: 48px;
+		margin-bottom: var(--spacing-4);
+		color: var(--color-muted);
+		background: var(--color-surface);
+		border-radius: var(--radius-full);
+	}
+
+	.empty-title {
+		font-size: var(--font-size-base);
+		font-weight: 600;
+		color: var(--color-text);
+	}
+
+	.empty-description {
+		margin-top: var(--spacing-2);
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		max-width: 32ch;
+	}
+</style>

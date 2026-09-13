@@ -1,0 +1,392 @@
+---
+export const prerender = false;
+
+import { search, getTermsForEntries, getTaxonomyTerms, getEntriesByTerm } from "emdash";
+import Base from "../layouts/Base.astro";
+import PageHeader from "../components/PageHeader.astro";
+import Badge from "../components/badges/Badge.astro";
+import TagList from "../components/TagList.astro";
+import EmptyState from "../components/EmptyState.astro";
+import ErrorState from "../components/ErrorState.astro";
+import { TYPE_LABEL, TYPE_PATH, COLLECTION_TO_TYPE, type KnowledgeType } from "../utils/knowledge";
+
+const TYPES: KnowledgeType[] = ["article", "adr", "incident"];
+const ALL_COLLECTIONS = ["articles", "adrs", "incidents"];
+
+interface DisplayResult {
+	collection: string;
+	id: string;
+	title: string | null;
+	snippet: string | null;
+	/** Set when this row was matched by tag rather than full-text, since FTS
+	 * doesn't index taxonomy term labels. */
+	matchedTagLabel: string | null;
+}
+
+const query = Astro.url.searchParams.get("q")?.trim() || "";
+const typeParam = Astro.url.searchParams.get("type");
+const activeType: KnowledgeType | null = TYPES.includes(typeParam as KnowledgeType)
+	? (typeParam as KnowledgeType)
+	: null;
+const collections = activeType ? [TYPE_PATH[activeType].slice(1)] : ALL_COLLECTIONS;
+
+let loadError: Error | null = null;
+let displayResults: DisplayResult[] = [];
+const tagsByResult = new Map<string, Array<{ slug: string; label: string }>>();
+
+if (query) {
+	try {
+		const [ftsResponse, tagTerms] = await Promise.all([
+			search(query, { collections, limit: 30 }),
+			getTaxonomyTerms("tag", { includeCounts: false }),
+		]);
+
+		// FTS indexes field content, not taxonomy term labels, so a query that
+		// is itself a tag name (e.g. "GraphQL") wouldn't otherwise match
+		// anything. Resolve it against the real tag vocabulary and pull those
+		// entries in via the existing taxonomy query — no separate search
+		// index, just the DB relationship EmDash already has.
+		const normalizedQuery = query.toLowerCase();
+		const matchedTag = tagTerms.find(
+			(t) => t.label.toLowerCase() === normalizedQuery || t.slug === normalizedQuery,
+		);
+
+		const merged: DisplayResult[] = [];
+		const seen = new Set<string>();
+
+		if (matchedTag) {
+			const tagHits = await Promise.all(
+				collections.map((collection) => getEntriesByTerm(collection, "tag", matchedTag.slug)),
+			);
+			collections.forEach((collection, i) => {
+				for (const entry of tagHits[i]) {
+					const key = `${collection}:${entry.id}`;
+					if (seen.has(key)) continue;
+					seen.add(key);
+					merged.push({
+						collection,
+						id: entry.id,
+						title: typeof entry.data.title === "string" ? entry.data.title : null,
+						snippet: null,
+						matchedTagLabel: matchedTag.label,
+					});
+				}
+			});
+		}
+
+		for (const r of ftsResponse.items) {
+			const key = `${r.collection}:${r.id}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			merged.push({
+				collection: r.collection,
+				id: r.id,
+				title: r.title ?? null,
+				snippet: r.snippet ?? null,
+				matchedTagLabel: null,
+			});
+		}
+
+		displayResults = merged;
+
+		// Tags aren't part of either result shape above, so batch-fetch them
+		// per collection (one query per collection present, not one per row).
+		const idsByCollection = new Map<string, string[]>();
+		for (const r of merged) {
+			idsByCollection.set(r.collection, [...(idsByCollection.get(r.collection) ?? []), r.id]);
+		}
+		const tagEntries = await Promise.all(
+			[...idsByCollection.entries()].map(async ([collection, ids]) => [
+				collection,
+				await getTermsForEntries(collection, ids, "tag"),
+			] as const),
+		);
+		const tagsByCollection = new Map(tagEntries);
+		for (const r of merged) {
+			tagsByResult.set(`${r.collection}:${r.id}`, tagsByCollection.get(r.collection)?.get(r.id) ?? []);
+		}
+	} catch (error) {
+		loadError = error instanceof Error ? error : new Error(String(error));
+	}
+}
+
+function typeFilterUrl(type: KnowledgeType | null): string {
+	const params = new URLSearchParams();
+	if (query) params.set("q", query);
+	if (type) params.set("type", type);
+	return `/search${params.toString() ? `?${params.toString()}` : ""}`;
+}
+---
+
+<Base
+	title={query ? `Search: ${query}` : "Search"}
+	description="Search across EngiVault's articles, architecture decisions, and incident reports."
+>
+	<div class="container page">
+		<PageHeader
+			eyebrow="Knowledge Base"
+			title="Search"
+			description="Search across articles, architecture decisions, and incident reports."
+		/>
+
+		<form method="get" action="/search" role="search" class="search-form">
+			<label for="search-input" class="sr-only">Search the knowledge base</label>
+			<input
+				id="search-input"
+				type="search"
+				name="q"
+				value={query}
+				placeholder="Search the knowledge base…"
+				class="search-input"
+				autofocus
+			/>
+			<button type="submit" class="search-button">Search</button>
+		</form>
+
+		{
+			query && (
+				<nav class="filters" aria-label="Filter by content type">
+					<a href={typeFilterUrl(null)} class:list={["filter-pill", { active: !activeType }]}>
+						All
+					</a>
+					{TYPES.map((type) => (
+						<a href={typeFilterUrl(type)} class:list={["filter-pill", { active: activeType === type }]}>
+							{TYPE_LABEL[type]}s
+						</a>
+					))}
+				</nav>
+			)
+		}
+
+		{
+			loadError ? (
+				<ErrorState
+					code="500"
+					title="Search is temporarily unavailable"
+					description="Something went wrong running that search. Please try again shortly."
+				/>
+			) : (
+				<>
+					{query && (
+						<p class="search-summary" role="status">
+							{displayResults.length === 0
+								? `No results for "${query}"`
+								: `${displayResults.length} result${displayResults.length === 1 ? "" : "s"} for "${query}"`}
+						</p>
+					)}
+
+					{query && displayResults.length === 0 && (
+						<EmptyState
+							title={`No results for "${query}"`}
+							description="Try a different term or filter, or browse the knowledge base directly."
+						/>
+					)}
+
+					{displayResults.length > 0 && (
+						<ol class="search-results">
+							{displayResults.map((result) => {
+								const type = COLLECTION_TO_TYPE[result.collection] ?? "article";
+								const tags = tagsByResult.get(`${result.collection}:${result.id}`) ?? [];
+								return (
+									<li class="search-result">
+										<a href={`${TYPE_PATH[type]}/${result.id}`} class="result-link">
+											<Badge tone="neutral" mono class="result-badge">
+												{TYPE_LABEL[type]}
+											</Badge>
+											<h2 class="result-title">{result.title ?? "Untitled"}</h2>
+											{result.snippet && <p class="result-snippet" set:html={result.snippet} />}
+											{result.matchedTagLabel && (
+												<p class="result-matched-tag">Tagged “{result.matchedTagLabel}”</p>
+											)}
+										</a>
+										{tags.length > 0 && <TagList class="result-tags" tags={tags} />}
+									</li>
+								);
+							})}
+						</ol>
+					)}
+
+					{!query && (
+						<EmptyState
+							title="Search the knowledge base"
+							description="Enter a term above to search articles, ADRs, and incident reports."
+						/>
+					)}
+				</>
+			)
+		}
+	</div>
+</Base>
+
+<style>
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+	}
+
+	.page {
+		padding-block: var(--spacing-12) var(--spacing-24);
+	}
+
+	.search-form {
+		display: flex;
+		gap: var(--spacing-2);
+		max-width: var(--content-width);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.search-input {
+		flex: 1;
+		padding: var(--spacing-3) var(--spacing-4);
+		font-family: var(--font-body);
+		font-size: var(--font-size-base);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-bg-subtle);
+		color: var(--color-text);
+		transition:
+			border-color var(--transition-fast),
+			background var(--transition-fast),
+			box-shadow var(--transition-fast);
+	}
+
+	.search-input:focus {
+		outline: none;
+		border-color: var(--color-brand);
+		background: var(--color-bg);
+		box-shadow: 0 0 0 3px var(--color-brand-ring);
+	}
+
+	.search-button {
+		padding: var(--spacing-3) var(--spacing-6);
+		font-family: var(--font-body);
+		font-size: var(--font-size-base);
+		font-weight: 500;
+		background: var(--color-brand-solid);
+		color: var(--color-on-brand);
+		border: none;
+		border-radius: var(--radius);
+		cursor: pointer;
+		transition: background var(--transition-fast);
+	}
+
+	.search-button:hover {
+		background: var(--color-brand-solid-hover);
+	}
+
+	.filters {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.filter-pill {
+		display: inline-flex;
+		align-items: center;
+		padding: var(--spacing-2) var(--spacing-4);
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		color: var(--color-text-secondary);
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-full);
+		text-decoration: none;
+		transition:
+			color var(--transition-fast),
+			background var(--transition-fast),
+			border-color var(--transition-fast);
+	}
+
+	.filter-pill:hover {
+		color: var(--color-text);
+		border-color: color-mix(in srgb, var(--color-brand) 40%, var(--color-border));
+	}
+
+	.filter-pill.active {
+		color: var(--color-on-brand);
+		background: var(--color-brand-solid);
+		border-color: var(--color-brand-solid);
+	}
+
+	.search-summary {
+		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.search-results {
+		list-style: none;
+		max-width: var(--content-width);
+		display: flex;
+		flex-direction: column;
+	}
+
+	.search-result {
+		padding: var(--spacing-6) 0;
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.search-result:first-child {
+		padding-top: 0;
+	}
+
+	.search-result:last-child {
+		border-bottom: none;
+	}
+
+	.result-link {
+		display: block;
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.result-badge {
+		margin-bottom: var(--spacing-2);
+	}
+
+	.result-title {
+		font-size: var(--font-size-xl);
+		font-weight: var(--font-weight-heading);
+		line-height: var(--leading-snug);
+		margin-bottom: var(--spacing-2);
+		transition: color var(--transition-fast);
+	}
+
+	.result-link:hover .result-title {
+		color: var(--color-brand);
+	}
+
+	.result-snippet {
+		font-size: var(--font-size-base);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+	}
+
+	.result-snippet :global(mark) {
+		background: var(--color-brand-ring);
+		color: inherit;
+		padding: 0 0.1em;
+		border-radius: 2px;
+	}
+
+	.result-matched-tag {
+		font-size: var(--font-size-sm);
+		font-style: italic;
+		color: var(--color-muted);
+	}
+
+	.result-tags {
+		margin-top: var(--spacing-3);
+	}
+
+	@media (max-width: 640px) {
+		.search-form {
+			flex-direction: column;
+		}
+	}
+</style>

@@ -1,0 +1,87 @@
+---
+interface Props {
+	href?: string;
+	variant?: "primary" | "secondary" | "ghost";
+	size?: "sm" | "md";
+	type?: "button" | "submit";
+	class?: string;
+}
+
+const { href, variant = "primary", size = "md", type = "button", class: className } = Astro.props;
+const classes = ["btn", `btn-${variant}`, `btn-${size}`, className].filter(Boolean).join(" ");
+const Tag = href ? "a" : "button";
+---
+
+<Tag class={classes} href={href} type={href ? undefined : type}>
+	<slot />
+</Tag>
+
+<style>
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--spacing-2);
+		font-family: var(--font-body);
+		font-weight: 500;
+		text-decoration: none;
+		border-radius: var(--radius);
+		border: 1px solid transparent;
+		cursor: pointer;
+		white-space: nowrap;
+		transition:
+			background var(--transition-fast),
+			border-color var(--transition-fast),
+			color var(--transition-fast),
+			transform var(--transition-fast);
+	}
+
+	.btn:active {
+		transform: translateY(1px);
+	}
+
+	.btn-md {
+		padding: var(--spacing-2) var(--spacing-5);
+		font-size: var(--font-size-sm);
+	}
+
+	.btn-sm {
+		padding: var(--spacing-1) var(--spacing-3);
+		font-size: var(--font-size-xs);
+	}
+
+	.btn-primary {
+		background: var(--color-brand-solid);
+		color: var(--color-on-brand);
+		border-color: var(--color-brand-solid);
+	}
+
+	.btn-primary:hover {
+		background: var(--color-brand-solid-hover);
+		border-color: var(--color-brand-solid-hover);
+		color: var(--color-on-brand);
+	}
+
+	.btn-secondary {
+		background: var(--color-bg);
+		color: var(--color-text);
+		border-color: var(--color-border);
+	}
+
+	.btn-secondary:hover {
+		background: var(--color-surface);
+		color: var(--color-text);
+		border-color: var(--color-border);
+	}
+
+	.btn-ghost {
+		background: transparent;
+		color: var(--color-text-secondary);
+		border-color: transparent;
+	}
+
+	.btn-ghost:hover {
+		background: var(--color-surface);
+		color: var(--color-text);
+	}
+</style>

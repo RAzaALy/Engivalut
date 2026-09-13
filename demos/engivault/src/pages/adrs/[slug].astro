@@ -1,0 +1,238 @@
+---
+import {
+	getEmDashEntry,
+	getEmDashCollection,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import Card from "../../components/Card.astro";
+import StatusBadge from "../../components/badges/StatusBadge.astro";
+import TagList from "../../components/TagList.astro";
+import { resolveSiteIdentity } from "../../utils/site-identity";
+
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.redirect("/404");
+
+const { entry: adr, cacheHint } = await getEmDashEntry("adrs", slug);
+if (!adr) return Astro.redirect("/404");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+const { siteTitle } = resolveSiteIdentity(await getSiteSettings());
+const seo = getSeoMeta(adr, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: Astro.url.pathname.replace(/\/$/, ""),
+});
+
+const tags = adr.data.terms?.tag ?? [];
+const decisionDate = adr.data.date
+	? new Date(adr.data.date).toLocaleDateString("en-US", {
+			year: "numeric",
+			month: "long",
+			day: "numeric",
+		})
+	: null;
+
+const sections = [
+	{ heading: "Problem", value: adr.data.problem },
+	{ heading: "Decision", value: adr.data.decision },
+	{ heading: "Alternatives Considered", value: adr.data.alternatives },
+	{ heading: "Consequences", value: adr.data.consequences },
+].filter((s) => s.value && s.value.length > 0);
+
+const { entries: moreAdrs } = await getEmDashCollection("adrs", {
+	orderBy: { published_at: "desc" },
+	limit: 4,
+});
+const otherAdrs = moreAdrs.filter((a) => a.id !== adr.id).slice(0, 3);
+
+const breadcrumbs = [
+	{ name: "Home", url: "/" },
+	{ name: "Architecture Decisions", url: "/adrs" },
+	{ name: adr.data.title, url: `/adrs/${slug}` },
+];
+---
+
+<Base
+	title={seo.title}
+	description={seo.description}
+	canonical={seo.canonical}
+	type="article"
+	publishedTime={adr.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={adr.data.updatedAt.toISOString()}
+	author={adr.data.author}
+	breadcrumbs={breadcrumbs}
+	content={{ collection: "adrs", id: adr.data.id, slug }}
+>
+	<article class="doc">
+		<div class="container">
+			<Breadcrumbs items={breadcrumbs} />
+			<header class="doc-header">
+				<div class="doc-eyebrow">
+					<StatusBadge status={adr.data.decision_status} />
+				</div>
+				<h1 class="doc-title" {...adr.edit.title}>{adr.data.title}</h1>
+				<div class="doc-meta">
+					{adr.data.author && <span>{adr.data.author}</span>}
+					{decisionDate && (
+						<>
+							<span class="meta-dot" />
+							<time>{decisionDate}</time>
+						</>
+					)}
+				</div>
+			</header>
+
+			<div class="doc-sections">
+				{sections.map((section) => (
+					<section class="doc-section">
+						<h2 class="doc-section-title">{section.heading}</h2>
+						<div class="doc-content">
+							<PortableText value={section.value} />
+						</div>
+					</section>
+				))}
+			</div>
+
+			{tags.length > 0 && (
+				<div class="doc-tags">
+					<TagList tags={tags} />
+				</div>
+			)}
+		</div>
+	</article>
+
+	{
+		otherAdrs.length > 0 && (
+			<section class="more">
+				<div class="container">
+					<h2 class="more-title">More ADRs</h2>
+					<div class="card-grid">
+						{otherAdrs.map((a) => (
+							<Card href={`/adrs/${a.id}`}>
+								<StatusBadge slot="eyebrow" status={a.data.decision_status} />
+								<Fragment slot="title">{a.data.title}</Fragment>
+								<span slot="meta">{a.data.author}</span>
+							</Card>
+						))}
+					</div>
+				</div>
+			</section>
+		)
+	}
+</Base>
+
+<style>
+	.doc {
+		padding-block: var(--spacing-12) var(--spacing-16);
+	}
+
+	.doc-header {
+		max-width: var(--content-width);
+		margin-inline: auto;
+		margin-bottom: var(--spacing-10);
+	}
+
+	.doc-eyebrow {
+		margin-bottom: var(--spacing-4);
+	}
+
+	.doc-title {
+		font-size: clamp(2rem, 5vw, var(--font-size-4xl));
+		margin-bottom: var(--spacing-4);
+	}
+
+	.doc-meta {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		font-family: var(--font-mono);
+	}
+
+	.meta-dot {
+		width: 3px;
+		height: 3px;
+		border-radius: 50%;
+		background: var(--color-muted);
+	}
+
+	.doc-sections {
+		max-width: var(--content-width);
+		margin-inline: auto;
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-10);
+	}
+
+	.doc-section-title {
+		font-size: var(--font-size-xs);
+		font-family: var(--font-mono);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wider);
+		color: var(--color-brand);
+		margin-bottom: var(--spacing-4);
+		padding-bottom: var(--spacing-3);
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.doc-content {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+	}
+
+	.doc-content :global(p) {
+		margin-bottom: 1.25em;
+	}
+
+	.doc-content :global(p:last-child) {
+		margin-bottom: 0;
+	}
+
+	.doc-tags {
+		max-width: var(--content-width);
+		margin-inline: auto;
+		margin-top: var(--spacing-10);
+		padding-top: var(--spacing-6);
+		border-top: 1px solid var(--color-border-subtle);
+	}
+
+	.more {
+		background: var(--color-bg-subtle);
+		border-top: 1px solid var(--color-border-subtle);
+		padding-block: var(--spacing-16);
+	}
+
+	.more-title {
+		font-size: var(--font-size-2xl);
+		margin-bottom: var(--spacing-8);
+	}
+
+	.card-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--spacing-6);
+	}
+
+	@media (max-width: 900px) {
+		.card-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.doc-title {
+			font-size: var(--font-size-3xl);
+		}
+
+		.card-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
