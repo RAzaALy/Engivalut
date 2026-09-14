@@ -1,0 +1,22 @@
+/*
+  theme.css -- override any :root variable here to retheme EngiVault.
+
+  This is the only file you need to edit to customize the site's visual
+  appearance. All defaults are listed below as comments (mirroring
+  tokens.css). Uncomment and change any value to override it.
+
+  Declarations here are unlayered, so they always beat tokens.css's
+  @layer base defaults -- no specificity tricks needed.
+
+  Note: colors use light-dark(light, dark). Overriding a color with a
+  plain value changes both modes at once; use light-dark(<light>, <dark>)
+  to keep them distinct.
+*/
+
+:root {
+	/* --color-bg: light-dark(#ffffff, #0a0a0d); */
+	/* --color-brand: light-dark(#4f46e5, #818cf8); */
+	/* --color-brand-solid: #4f46e5; */
+	/* --radius: 6px; */
+	/* --wide-width: 1200px; */
+}

@@ -1,0 +1,25 @@
+---
+import Badge, { type BadgeTone } from "./Badge.astro";
+
+interface Props {
+	status: "proposed" | "accepted" | "deprecated" | "superseded";
+}
+
+const { status } = Astro.props;
+
+const TONE: Record<Props["status"], BadgeTone> = {
+	proposed: "neutral",
+	accepted: "success",
+	deprecated: "warning",
+	superseded: "brand",
+};
+
+const LABEL: Record<Props["status"], string> = {
+	proposed: "Proposed",
+	accepted: "Accepted",
+	deprecated: "Deprecated",
+	superseded: "Superseded",
+};
+---
+
+<Badge tone={TONE[status]} mono>{LABEL[status]}</Badge>

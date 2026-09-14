@@ -1,0 +1,435 @@
+---
+import { getEmDashCollection, getSiteSettings } from "emdash";
+import Base from "../layouts/Base.astro";
+import Button from "../components/Button.astro";
+import Card from "../components/Card.astro";
+import ContentCard from "../components/ContentCard.astro";
+import Badge from "../components/badges/Badge.astro";
+import StatusBadge from "../components/badges/StatusBadge.astro";
+import SeverityBadge from "../components/badges/SeverityBadge.astro";
+import IncidentStatusBadge from "../components/badges/IncidentStatusBadge.astro";
+import ErrorState from "../components/ErrorState.astro";
+import { resolveSiteIdentity } from "../utils/site-identity";
+import { formatDate, type KnowledgeType } from "../utils/knowledge";
+import { mergeCacheHints } from "../utils/cache";
+import { canonicalUrl } from "../utils/seo";
+
+const { siteTitle } = resolveSiteIdentity(await getSiteSettings());
+
+const HERO_TITLE = "Engineering Knowledge, One Search Away";
+const HERO_SUBTITLE =
+	"EngiVault centralizes engineering articles, architecture decisions, and incident knowledge in one searchable, AI-ready knowledge base.";
+
+interface RecentItem {
+	type: KnowledgeType;
+	href: string;
+	title: string;
+	summary: string | null;
+	date: Date | null;
+	author: string | null;
+}
+
+let loadError: Error | null = null;
+let allArticles: Awaited<ReturnType<typeof getEmDashCollection<"articles">>>["entries"] = [];
+let allAdrs: Awaited<ReturnType<typeof getEmDashCollection<"adrs">>>["entries"] = [];
+let allIncidents: Awaited<ReturnType<typeof getEmDashCollection<"incidents">>>["entries"] = [];
+
+try {
+	// All three collections are small; fetching unlimited gives an accurate
+	// stat count and lets "Recent Knowledge" merge-sort correctly across
+	// types without a second, differently-limited query per section.
+	const [articlesResult, adrsResult, incidentsResult] = await Promise.all([
+		getEmDashCollection("articles", { orderBy: { published_at: "desc" } }),
+		getEmDashCollection("adrs", { orderBy: { published_at: "desc" } }),
+		getEmDashCollection("incidents", { orderBy: { published_at: "desc" } }),
+	]);
+	allArticles = articlesResult.entries;
+	allAdrs = adrsResult.entries;
+	allIncidents = incidentsResult.entries;
+	if (Astro.cache?.enabled) {
+		Astro.cache.set(
+			mergeCacheHints([articlesResult.cacheHint, adrsResult.cacheHint, incidentsResult.cacheHint]),
+		);
+	}
+} catch (error) {
+	loadError = error instanceof Error ? error : new Error(String(error));
+	Astro.response.status = 500;
+}
+
+const recentKnowledge: RecentItem[] = [
+	...allArticles.map((a) => ({
+		type: "article" as const,
+		href: `/articles/${a.id}`,
+		title: a.data.title,
+		summary: a.data.summary ?? null,
+		date: a.data.publishedAt,
+		author: a.data.author ?? null,
+	})),
+	// ADRs and incidents carry their own narrative date (decision date /
+	// incident date) — that's the meaningful "recency" signal for a
+	// cross-type feed, not `publishedAt`, which only records when the row
+	// was added to the knowledge base (identical for everything seeded in
+	// one batch).
+	...allAdrs.map((a) => ({
+		type: "adr" as const,
+		href: `/adrs/${a.id}`,
+		title: a.data.title,
+		summary: null,
+		date: a.data.date ? new Date(a.data.date) : null,
+		author: a.data.author ?? null,
+	})),
+	...allIncidents.map((i) => ({
+		type: "incident" as const,
+		href: `/incidents/${i.id}`,
+		title: i.data.title,
+		summary: i.data.summary ?? null,
+		date: i.data.date ? new Date(i.data.date) : null,
+		author: i.data.author ?? null,
+	})),
+]
+	.sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0))
+	.slice(0, 6);
+
+const featuredAdrs = allAdrs.slice(0, 3);
+const recentIncidents = allIncidents.slice(0, 3);
+
+// Featured articles: the editorially-flagged ones first, backfilled with the
+// most recent so the section is never empty.
+const featuredArticles = [
+	...allArticles.filter((a) => a.data.featured),
+	...allArticles.filter((a) => !a.data.featured),
+].slice(0, 3);
+---
+
+<Base
+	title={`${siteTitle} — Engineering Knowledge, One Search Away`}
+	description={HERO_SUBTITLE}
+	canonical={canonicalUrl(Astro.url)}
+	robots={loadError ? "noindex, nofollow" : undefined}
+>
+	<section class="hero">
+		<div class="container hero-inner">
+			<p class="hero-eyebrow">Engineering Knowledge Intelligence</p>
+			<h1 class="hero-title">{HERO_TITLE}</h1>
+			<p class="hero-description">{HERO_SUBTITLE}</p>
+			<div class="hero-actions">
+				<Button href="/ask">Ask Engineering AI</Button>
+				<Button href="/knowledge" variant="secondary">Explore Knowledge</Button>
+			</div>
+			<form method="get" action="/search" role="search" class="hero-search">
+				<label for="hero-search-input" class="sr-only">Search the knowledge base</label>
+				<input
+					id="hero-search-input"
+					type="search"
+					name="q"
+					placeholder="Search articles, ADRs, incidents…"
+					class="hero-search-input"
+				/>
+				<Button type="submit" size="sm">Search</Button>
+			</form>
+		</div>
+	</section>
+
+	{
+		loadError ? (
+			<div class="container section">
+				<ErrorState
+					code="500"
+					title="Couldn't load knowledge statistics"
+					description="The knowledge base is temporarily unavailable. Please try again shortly."
+				/>
+			</div>
+		) : (
+			<>
+				<section class="container stats" aria-label="Knowledge statistics">
+					<dl class="stats-grid">
+						<div class="stat">
+							<dt>Articles</dt>
+							<dd>{allArticles.length}</dd>
+						</div>
+						<div class="stat">
+							<dt>Architecture Decisions</dt>
+							<dd>{allAdrs.length}</dd>
+						</div>
+						<div class="stat">
+							<dt>Incidents</dt>
+							<dd>{allIncidents.length}</dd>
+						</div>
+					</dl>
+				</section>
+
+				<section class="container section" aria-labelledby="recent-knowledge-heading">
+					<div class="section-header">
+						<h2 id="recent-knowledge-heading" class="section-title">Recent Knowledge</h2>
+						<a href="/knowledge" class="section-link">View all <span class="sr-only">knowledge</span> →</a>
+					</div>
+					{recentKnowledge.length === 0 ? (
+						<p class="section-empty">Nothing published yet.</p>
+					) : (
+						<div class="card-grid">
+							{recentKnowledge.map((item) => (
+								<ContentCard
+									type={item.type}
+									href={item.href}
+									title={item.title}
+									summary={item.summary}
+									date={item.date}
+									author={item.author}
+								/>
+							))}
+						</div>
+					)}
+				</section>
+
+				<section class="container section" aria-labelledby="adrs-heading">
+					<div class="section-header">
+						<h2 id="adrs-heading" class="section-title">Featured Architecture Decisions</h2>
+						<a href="/adrs" class="section-link">View all <span class="sr-only">architecture decisions</span> →</a>
+					</div>
+					{featuredAdrs.length === 0 ? (
+						<p class="section-empty">No architecture decisions recorded yet.</p>
+					) : (
+						<div class="card-grid">
+							{featuredAdrs.map((adr) => (
+								<Card href={`/adrs/${adr.id}`}>
+									<StatusBadge slot="eyebrow" status={adr.data.decision_status} />
+									<Fragment slot="title">{adr.data.title}</Fragment>
+									<span slot="meta">
+										{adr.data.author}
+										{formatDate(adr.data.date) && <span> · {formatDate(adr.data.date)}</span>}
+									</span>
+								</Card>
+							))}
+						</div>
+					)}
+				</section>
+
+				<section class="container section" aria-labelledby="incidents-heading">
+					<div class="section-header">
+						<h2 id="incidents-heading" class="section-title">Recent Incidents</h2>
+						<a href="/incidents" class="section-link">View all <span class="sr-only">incidents</span> →</a>
+					</div>
+					{recentIncidents.length === 0 ? (
+						<p class="section-empty">No incidents recorded yet.</p>
+					) : (
+						<div class="card-grid">
+							{recentIncidents.map((incident) => (
+								<Card href={`/incidents/${incident.id}`}>
+									<span slot="eyebrow">
+										<SeverityBadge severity={incident.data.severity} />
+										<IncidentStatusBadge status={incident.data.incident_status} />
+									</span>
+									<Fragment slot="title">{incident.data.title}</Fragment>
+									{incident.data.summary}
+								</Card>
+							))}
+						</div>
+					)}
+				</section>
+
+				<section class="container section" aria-labelledby="featured-articles-heading">
+					<div class="section-header">
+						<h2 id="featured-articles-heading" class="section-title">Featured Articles</h2>
+						<a href="/articles" class="section-link">View all <span class="sr-only">articles</span> →</a>
+					</div>
+					{featuredArticles.length === 0 ? (
+						<p class="section-empty">No articles published yet.</p>
+					) : (
+						<div class="card-grid">
+							{featuredArticles.map((article) => (
+								<Card href={`/articles/${article.id}`}>
+									{article.data.featured && (
+										<Badge slot="eyebrow" tone="brand" mono>
+											Featured
+										</Badge>
+									)}
+									<Fragment slot="title">{article.data.title}</Fragment>
+									<span slot="meta">{article.data.author}</span>
+									{article.data.summary}
+								</Card>
+							))}
+						</div>
+					)}
+				</section>
+			</>
+		)
+	}
+</Base>
+
+<style>
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+	}
+
+	.hero {
+		border-bottom: 1px solid var(--color-border-subtle);
+		background:
+			radial-gradient(
+				circle at 15% 0%,
+				color-mix(in srgb, var(--color-brand) 10%, transparent),
+				transparent 55%
+			),
+			var(--color-bg);
+	}
+
+	.hero-inner {
+		padding: var(--spacing-24) var(--spacing-6) var(--spacing-16);
+	}
+
+	.hero-eyebrow {
+		font-family: var(--font-mono);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wider);
+		color: var(--color-brand);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.hero-title {
+		font-size: var(--font-size-5xl);
+		max-width: 22ch;
+		margin-bottom: var(--spacing-5);
+	}
+
+	.hero-description {
+		font-size: var(--font-size-xl);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+		max-width: 60ch;
+		margin-bottom: var(--spacing-8);
+	}
+
+	.hero-actions {
+		display: flex;
+		gap: var(--spacing-3);
+		margin-bottom: var(--spacing-8);
+	}
+
+	.hero-search {
+		display: flex;
+		gap: var(--spacing-2);
+		max-width: 480px;
+	}
+
+	.hero-search-input {
+		flex: 1;
+		padding: var(--spacing-3) var(--spacing-4);
+		font-family: var(--font-body);
+		font-size: var(--font-size-base);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-bg-subtle);
+		color: var(--color-text);
+		transition:
+			border-color var(--transition-fast),
+			background var(--transition-fast),
+			box-shadow var(--transition-fast);
+	}
+
+	.hero-search-input:focus {
+		outline: none;
+		border-color: var(--color-brand);
+		background: var(--color-bg);
+		box-shadow: 0 0 0 3px var(--color-brand-ring);
+	}
+
+	.stats {
+		padding-block: var(--spacing-10);
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.stats-grid {
+		display: flex;
+		gap: var(--spacing-16);
+	}
+
+	.stat dt {
+		font-family: var(--font-mono);
+		font-size: var(--font-size-xs);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-1);
+	}
+
+	.stat dd {
+		font-size: var(--font-size-3xl);
+		font-weight: 700;
+		margin: 0;
+	}
+
+	.section {
+		padding-block: var(--spacing-16);
+	}
+
+	.section-header {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		margin-bottom: var(--spacing-6);
+	}
+
+	.section-title {
+		font-size: var(--font-size-2xl);
+	}
+
+	.section-link {
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		white-space: nowrap;
+	}
+
+	.section-empty {
+		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	.card-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--spacing-6);
+	}
+
+	@media (max-width: 900px) {
+		.card-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+
+		.hero-inner {
+			padding-top: var(--spacing-16);
+		}
+
+		.stats-grid {
+			gap: var(--spacing-10);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.card-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.stats-grid {
+			gap: var(--spacing-6);
+		}
+
+		.hero-actions {
+			flex-direction: column;
+		}
+
+		.hero-actions :global(.btn) {
+			width: 100%;
+		}
+
+		.hero-search {
+			flex-direction: column;
+			max-width: none;
+		}
+	}
+</style>

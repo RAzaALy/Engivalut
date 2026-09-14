@@ -1,0 +1,23 @@
+---
+import Badge, { type BadgeTone } from "./Badge.astro";
+
+interface Props {
+	status: "investigating" | "monitoring" | "resolved";
+}
+
+const { status } = Astro.props;
+
+const TONE: Record<Props["status"], BadgeTone> = {
+	investigating: "danger",
+	monitoring: "warning",
+	resolved: "success",
+};
+
+const LABEL: Record<Props["status"], string> = {
+	investigating: "Investigating",
+	monitoring: "Monitoring",
+	resolved: "Resolved",
+};
+---
+
+<Badge tone={TONE[status]} mono>{LABEL[status]}</Badge>

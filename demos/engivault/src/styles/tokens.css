@@ -1,0 +1,143 @@
+/*
+  tokens.css -- design tokens for EngiVault's "premium engineering platform"
+  visual system. These are the defaults; to customize the site, override
+  any variable in src/styles/theme.css rather than editing this file.
+  Declarations in theme.css are unlayered, so they always beat these
+  @layer base defaults -- no specificity tricks needed.
+
+  Colors use light-dark(): the first value applies in light mode, the
+  second in dark mode. Overriding a color with a plain value changes
+  both modes at once; use light-dark(<light>, <dark>) in an override to
+  keep them distinct.
+
+  --font-body / --font-mono are defined by the font pipeline in
+  astro.config.mjs, not here.
+*/
+
+@layer base {
+	:root {
+		color-scheme: light dark;
+
+		/* --- Core surfaces --- */
+		--color-bg: light-dark(#ffffff, #0a0a0d);
+		--color-bg-subtle: light-dark(#f7f8fa, #12131a);
+		--color-surface: light-dark(#f1f2f5, #16171e);
+		--color-surface-hover: light-dark(#e9eaee, #1c1d26);
+		--color-text: light-dark(#0b0e14, #eceef2);
+		--color-text-secondary: light-dark(#4b5261, #9a9fac);
+		--color-muted: light-dark(#8a8f9c, #6b7080);
+		--color-border: light-dark(#e3e5ea, #24262f);
+		--color-border-subtle: light-dark(#edeef2, #1b1c24);
+
+		/* --- Brand / accent ---
+		 * --color-brand adapts per scheme, for links/icons/focus rings on the
+		 * page background. --color-brand-solid is intentionally fixed (not
+		 * light-dark()) so a filled button keeps guaranteed white-text
+		 * contrast in both themes. */
+		--color-brand: light-dark(#4f46e5, #818cf8);
+		--color-brand-hover: light-dark(#4338ca, #a5b0fb);
+		--color-brand-ring: color-mix(in srgb, var(--color-brand) 25%, transparent);
+		--color-brand-solid: #4f46e5;
+		--color-brand-solid-hover: #4338ca;
+		--color-on-brand: #ffffff;
+
+		/* --- Semantic status colors (text tone; badge backgrounds are
+		 * derived from these with color-mix, see Badge.astro) --- */
+		--color-success: light-dark(#0f7a4c, #34d399);
+		--color-warning: light-dark(#92400e, #fbbf24);
+		--color-danger: light-dark(#b91c1c, #f87171);
+		--color-info: light-dark(#1d4ed8, #60a5fa);
+
+		/* EmDash search theming (emdash/ui/search) */
+		--emdash-search-bg: var(--color-bg);
+		--emdash-search-text: var(--color-text);
+		--emdash-search-muted: var(--color-muted);
+		--emdash-search-border: var(--color-border);
+		--emdash-search-hover: var(--color-surface);
+		--emdash-search-highlight: var(--color-text);
+
+		/* --- Typography --- */
+		--font-heading: var(--font-body);
+		--font-weight-heading: 600;
+		--font-weight-display: 700;
+
+		--font-size-xs: 0.75rem;
+		--font-size-sm: 0.875rem;
+		--font-size-base: 1rem;
+		--font-size-lg: 1.125rem;
+		--font-size-xl: 1.25rem;
+		--font-size-2xl: 1.5rem;
+		--font-size-3xl: 2rem;
+		--font-size-4xl: 2.75rem;
+		--font-size-5xl: 3.5rem;
+
+		--leading-tight: 1.15;
+		--leading-snug: 1.35;
+		--leading-normal: 1.5;
+		--leading-relaxed: 1.65;
+
+		--tracking-tight: -0.03em; /* h1 / hero titles */
+		--tracking-snug: -0.015em; /* h2-h6, card titles */
+		--tracking-wide: 0.04em; /* meta labels */
+		--tracking-wider: 0.08em; /* eyebrows, badges, nav caps */
+
+		/* --- Spacing --- */
+		--spacing-1: 0.25rem;
+		--spacing-2: 0.5rem;
+		--spacing-3: 0.75rem;
+		--spacing-4: 1rem;
+		--spacing-5: 1.25rem;
+		--spacing-6: 1.5rem;
+		--spacing-8: 2rem;
+		--spacing-10: 2.5rem;
+		--spacing-12: 3rem;
+		--spacing-16: 4rem;
+		--spacing-20: 5rem;
+		--spacing-24: 6rem;
+
+		/* --- Layout --- */
+		--content-width: 720px; /* single-document reading column (article/adr/incident body) */
+		--wide-width: 1200px; /* max container width (home, lists) */
+		--nav-height: 64px;
+		--search-input-width: 220px;
+
+		/* --- Borders & radius --- */
+		--radius: 6px;
+		--radius-lg: 10px;
+		--radius-full: 999px;
+
+		/* --- Transitions --- */
+		--transition-fast: 120ms ease;
+		--transition-base: 180ms ease;
+
+		/* --- Shadows --- */
+		--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+		--shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+		--shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.16);
+	}
+
+	/*
+	 * Light-mode values for browsers without light-dark() (Safari < 17.5,
+	 * Chrome < 123). Must mirror the light values above.
+	 */
+	@supports not (color: light-dark(#000, #fff)) {
+		:root {
+			color-scheme: light;
+			--color-bg: #ffffff;
+			--color-bg-subtle: #f7f8fa;
+			--color-surface: #f1f2f5;
+			--color-surface-hover: #e9eaee;
+			--color-text: #0b0e14;
+			--color-text-secondary: #4b5261;
+			--color-muted: #8a8f9c;
+			--color-border: #e3e5ea;
+			--color-border-subtle: #edeef2;
+			--color-brand: #4f46e5;
+			--color-brand-hover: #4338ca;
+			--color-success: #0f7a4c;
+			--color-warning: #92400e;
+			--color-danger: #b91c1c;
+			--color-info: #1d4ed8;
+		}
+	}
+}

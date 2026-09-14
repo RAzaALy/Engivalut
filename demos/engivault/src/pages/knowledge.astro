@@ -1,0 +1,401 @@
+---
+export const prerender = false;
+
+import { getEmDashCollection, getTermsForEntries } from "emdash";
+import Base from "../layouts/Base.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ContentCard from "../components/ContentCard.astro";
+import EmptyState from "../components/EmptyState.astro";
+import ErrorState from "../components/ErrorState.astro";
+import Button from "../components/Button.astro";
+import { TYPE_LABEL, type KnowledgeType } from "../utils/knowledge";
+import { mergeCacheHints } from "../utils/cache";
+import { canonicalUrl } from "../utils/seo";
+
+const PAGE_SIZE = 9;
+const TYPES: KnowledgeType[] = ["article", "adr", "incident"];
+
+interface KnowledgeItem {
+	type: KnowledgeType;
+	href: string;
+	title: string;
+	summary: string | null;
+	date: Date | null;
+	author: string | null;
+	tags: Array<{ slug: string; label: string }>;
+}
+
+const typeParam = Astro.url.searchParams.get("type");
+const activeType: KnowledgeType | null = TYPES.includes(typeParam as KnowledgeType)
+	? (typeParam as KnowledgeType)
+	: null;
+const activeTag = Astro.url.searchParams.get("tag");
+const requestedPage = Number.parseInt(Astro.url.searchParams.get("page") ?? "1", 10);
+const currentPage = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+let loadError: Error | null = null;
+let items: KnowledgeItem[] = [];
+
+try {
+	const [articlesResult, adrsResult, incidentsResult] = await Promise.all([
+		getEmDashCollection("articles", { orderBy: { published_at: "desc" } }),
+		getEmDashCollection("adrs", { orderBy: { published_at: "desc" } }),
+		getEmDashCollection("incidents", { orderBy: { published_at: "desc" } }),
+	]);
+
+	if (Astro.cache?.enabled) {
+		Astro.cache.set(
+			mergeCacheHints([
+				articlesResult.cacheHint,
+				adrsResult.cacheHint,
+				incidentsResult.cacheHint,
+			]),
+		);
+	}
+
+	const [articleTags, adrTags, incidentTags] = await Promise.all([
+		getTermsForEntries("articles", articlesResult.entries.map((e) => e.data.id), "tag"),
+		getTermsForEntries("adrs", adrsResult.entries.map((e) => e.data.id), "tag"),
+		getTermsForEntries("incidents", incidentsResult.entries.map((e) => e.data.id), "tag"),
+	]);
+
+	items = [
+		...articlesResult.entries.map((a): KnowledgeItem => ({
+			type: "article",
+			href: `/articles/${a.id}`,
+			title: a.data.title,
+			summary: a.data.summary ?? null,
+			date: a.data.publishedAt,
+			author: a.data.author ?? null,
+			tags: articleTags.get(a.data.id) ?? [],
+		})),
+		// ADRs and incidents carry their own narrative date (decision date /
+		// incident date) — the meaningful "recency" signal here, not
+		// `publishedAt`, which only records when the row was added to the
+		// knowledge base (identical for everything seeded in one batch).
+		...adrsResult.entries.map((a): KnowledgeItem => ({
+			type: "adr",
+			href: `/adrs/${a.id}`,
+			title: a.data.title,
+			summary: null,
+			date: a.data.date ? new Date(a.data.date) : null,
+			author: a.data.author ?? null,
+			tags: adrTags.get(a.data.id) ?? [],
+		})),
+		...incidentsResult.entries.map((i): KnowledgeItem => ({
+			type: "incident",
+			href: `/incidents/${i.id}`,
+			title: i.data.title,
+			summary: i.data.summary ?? null,
+			date: i.data.date ? new Date(i.data.date) : null,
+			author: i.data.author ?? null,
+			tags: incidentTags.get(i.data.id) ?? [],
+		})),
+	].sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0));
+} catch (error) {
+	loadError = error instanceof Error ? error : new Error(String(error));
+	Astro.response.status = 500;
+}
+
+// Type filter narrows first; the tag list offered is scoped to what's
+// actually present in that filtered set, so a filter never points at zero
+// results.
+const typeFiltered = activeType ? items.filter((i) => i.type === activeType) : items;
+
+const availableTags = [...new Map(typeFiltered.flatMap((i) => i.tags).map((t) => [t.slug, t])).values()].sort(
+	(a, b) => a.label.localeCompare(b.label),
+);
+
+const filtered = activeTag ? typeFiltered.filter((i) => i.tags.some((t) => t.slug === activeTag)) : typeFiltered;
+
+const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+const safePage = Math.min(currentPage, totalPages);
+const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+function pageUrl(params: { type?: string | null; tag?: string | null; page?: number }): string {
+	const url = new URL(Astro.url);
+	const search = new URLSearchParams();
+	const nextType = params.type !== undefined ? params.type : activeType;
+	const nextTag = params.tag !== undefined ? params.tag : activeTag;
+	if (nextType) search.set("type", nextType);
+	if (nextTag) search.set("tag", nextTag);
+	if (params.page && params.page > 1) search.set("page", String(params.page));
+	url.search = search.toString();
+	return url.pathname + (url.search ? url.search : "");
+}
+
+// Faceted navigation: `type` narrows to one of three finite, worthwhile
+// pages to index. `tag` and `page` are open-ended combinations that mostly
+// duplicate a subset of the untagged/first-page content, so they
+// canonicalize back to the (optionally type-filtered) base view and are
+// marked noindex — still crawlable (follow) so link equity still flows to
+// the underlying articles/ADRs/incidents.
+const isThinVariant = !!activeTag || safePage > 1;
+const knowledgeCanonical = canonicalUrl(Astro.url, {
+	search: activeType ? `?type=${activeType}` : null,
+});
+---
+
+<Base
+	title="Knowledge Base"
+	description="Browse every article, architecture decision, and incident report in EngiVault."
+	canonical={knowledgeCanonical}
+	robots={loadError ? "noindex, nofollow" : isThinVariant ? "noindex, follow" : undefined}
+>
+	<div class="container page">
+		<PageHeader
+			eyebrow="Engineering Knowledge Intelligence"
+			title="Knowledge Base"
+			description="Every article, architecture decision, and incident report — filterable by type and tag."
+		/>
+
+		<form method="get" action="/search" role="search" class="search-entry">
+			<label for="knowledge-search-input" class="sr-only">Search the knowledge base</label>
+			<input
+				id="knowledge-search-input"
+				type="search"
+				name="q"
+				placeholder="Search articles, ADRs, incidents…"
+				class="search-entry-input"
+			/>
+			<Button type="submit" size="sm">Search</Button>
+		</form>
+
+		{
+			loadError ? (
+				<ErrorState
+					code="500"
+					title="Couldn't load the knowledge base"
+					description="Something went wrong fetching content. Please try again shortly."
+				/>
+			) : (
+				<>
+					<nav class="filters" aria-label="Filter by content type">
+						<a href={pageUrl({ type: null, page: 1 })} class:list={["filter-pill", { active: !activeType }]}>
+							All ({items.length})
+						</a>
+						{TYPES.map((type) => {
+							const count = items.filter((i) => i.type === type).length;
+							return (
+								<a
+									href={pageUrl({ type, page: 1 })}
+									class:list={["filter-pill", { active: activeType === type }]}
+								>
+									{TYPE_LABEL[type]}s ({count})
+								</a>
+							);
+						})}
+					</nav>
+
+					{availableTags.length > 0 && (
+						<nav class="filters filters-tags" aria-label="Filter by tag">
+							<a href={pageUrl({ tag: null, page: 1 })} class:list={["filter-pill", "filter-pill-tag", { active: !activeTag }]}>
+								All tags
+							</a>
+							{availableTags.map((tag) => (
+								<a
+									href={pageUrl({ tag: tag.slug, page: 1 })}
+									class:list={["filter-pill", "filter-pill-tag", { active: activeTag === tag.slug }]}
+								>
+									{tag.label}
+								</a>
+							))}
+						</nav>
+					)}
+
+					<p class="result-count">
+						{filtered.length} result{filtered.length === 1 ? "" : "s"}
+						{activeType && ` in ${TYPE_LABEL[activeType]}s`}
+						{activeTag && ` tagged "${availableTags.find((t) => t.slug === activeTag)?.label ?? activeTag}"`}
+					</p>
+
+					{pageItems.length === 0 ? (
+						<EmptyState
+							title="No results"
+							description="Try a different type or tag filter, or clear filters to see everything."
+						>
+							<Button href="/knowledge">Clear filters</Button>
+						</EmptyState>
+					) : (
+						<div class="card-grid">
+							{pageItems.map((item) => (
+								<ContentCard
+									type={item.type}
+									href={item.href}
+									title={item.title}
+									summary={item.summary}
+									date={item.date}
+									author={item.author}
+									tags={item.tags}
+									headingLevel="h2"
+								/>
+							))}
+						</div>
+					)}
+
+					{totalPages > 1 && (
+						<nav class="pagination" aria-label="Pagination">
+							<a
+								href={pageUrl({ page: safePage - 1 })}
+								class:list={["page-link", { disabled: safePage <= 1 }]}
+								aria-disabled={safePage <= 1}
+							>
+								← Previous
+							</a>
+							<span class="page-status">
+								Page {safePage} of {totalPages}
+							</span>
+							<a
+								href={pageUrl({ page: safePage + 1 })}
+								class:list={["page-link", { disabled: safePage >= totalPages }]}
+								aria-disabled={safePage >= totalPages}
+							>
+								Next →
+							</a>
+						</nav>
+					)}
+				</>
+			)
+		}
+	</div>
+</Base>
+
+<style>
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+	}
+
+	.page {
+		padding-block: var(--spacing-12) var(--spacing-24);
+	}
+
+	.search-entry {
+		display: flex;
+		gap: var(--spacing-2);
+		max-width: 480px;
+		margin-bottom: var(--spacing-8);
+	}
+
+	.search-entry-input {
+		flex: 1;
+		padding: var(--spacing-2) var(--spacing-4);
+		font-family: var(--font-body);
+		font-size: var(--font-size-base);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-bg-subtle);
+		color: var(--color-text);
+	}
+
+	.search-entry-input:focus {
+		outline: none;
+		border-color: var(--color-brand);
+		background: var(--color-bg);
+		box-shadow: 0 0 0 3px var(--color-brand-ring);
+	}
+
+	.filters {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.filters-tags {
+		margin-bottom: var(--spacing-6);
+		padding-bottom: var(--spacing-6);
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.filter-pill {
+		display: inline-flex;
+		align-items: center;
+		padding: var(--spacing-2) var(--spacing-4);
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		color: var(--color-text-secondary);
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-full);
+		text-decoration: none;
+		transition:
+			color var(--transition-fast),
+			background var(--transition-fast),
+			border-color var(--transition-fast);
+	}
+
+	.filter-pill:hover {
+		color: var(--color-text);
+		border-color: color-mix(in srgb, var(--color-brand) 40%, var(--color-border));
+	}
+
+	.filter-pill.active {
+		color: var(--color-on-brand);
+		background: var(--color-brand-solid);
+		border-color: var(--color-brand-solid);
+	}
+
+	.filter-pill-tag {
+		font-family: var(--font-mono);
+		font-size: var(--font-size-xs);
+		padding: var(--spacing-1) var(--spacing-3);
+	}
+
+	.result-count {
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.card-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--spacing-6);
+		margin-bottom: var(--spacing-10);
+	}
+
+	.pagination {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--spacing-6);
+	}
+
+	.page-link {
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+	}
+
+	.page-link.disabled {
+		color: var(--color-muted);
+		pointer-events: none;
+	}
+
+	.page-status {
+		font-family: var(--font-mono);
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+	}
+
+	@media (max-width: 900px) {
+		.card-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.card-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.search-entry {
+			flex-direction: column;
+			max-width: none;
+		}
+	}
+</style>

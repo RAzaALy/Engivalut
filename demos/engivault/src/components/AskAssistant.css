@@ -1,0 +1,311 @@
+.ask {
+	max-width: var(--content-width);
+}
+
+.ask-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-2);
+	margin-bottom: var(--spacing-6);
+}
+
+.ask-label {
+	font-size: var(--font-size-sm);
+	font-weight: 500;
+	color: var(--color-text-secondary);
+}
+
+.ask-input-row {
+	display: flex;
+	gap: var(--spacing-2);
+}
+
+.ask-input {
+	flex: 1;
+	padding: var(--spacing-3) var(--spacing-4);
+	font-family: var(--font-body);
+	font-size: var(--font-size-base);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	background: var(--color-bg-subtle);
+	color: var(--color-text);
+	transition:
+		border-color var(--transition-fast),
+		background var(--transition-fast),
+		box-shadow var(--transition-fast);
+}
+
+.ask-input:focus {
+	outline: none;
+	border-color: var(--color-brand);
+	background: var(--color-bg);
+	box-shadow: 0 0 0 3px var(--color-brand-ring);
+}
+
+.ask-input:disabled {
+	opacity: 0.6;
+}
+
+.ask-submit {
+	padding: var(--spacing-3) var(--spacing-6);
+	font-family: var(--font-body);
+	font-size: var(--font-size-base);
+	font-weight: 500;
+	background: var(--color-brand-solid);
+	color: var(--color-on-brand);
+	border: none;
+	border-radius: var(--radius);
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background var(--transition-fast);
+}
+
+.ask-submit:hover:not(:disabled) {
+	background: var(--color-brand-solid-hover);
+}
+
+.ask-submit:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.ask-hint {
+	font-size: var(--font-size-xs);
+	color: var(--color-muted);
+}
+
+.ask-examples-label {
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: var(--tracking-wider);
+	color: var(--color-muted);
+	margin-bottom: var(--spacing-3);
+}
+
+.ask-chip-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--spacing-2);
+}
+
+.ask-chip {
+	padding: var(--spacing-2) var(--spacing-4);
+	font-size: var(--font-size-sm);
+	color: var(--color-text-secondary);
+	background: var(--color-bg);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-full);
+	cursor: pointer;
+	text-align: left;
+	transition:
+		color var(--transition-fast),
+		border-color var(--transition-fast),
+		background var(--transition-fast);
+}
+
+.ask-chip:hover {
+	color: var(--color-text);
+	border-color: color-mix(in srgb, var(--color-brand) 40%, var(--color-border));
+	background: var(--color-surface);
+}
+
+.ask-loading {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-3);
+	padding: var(--spacing-6) 0;
+	color: var(--color-muted);
+	font-size: var(--font-size-sm);
+}
+
+.ask-spinner {
+	width: 16px;
+	height: 16px;
+	border: 2px solid var(--color-border);
+	border-top-color: var(--color-brand);
+	border-radius: 50%;
+	animation: ask-spin 0.7s linear infinite;
+}
+
+@keyframes ask-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ask-spinner {
+		animation: none;
+	}
+}
+
+.ask-error {
+	padding: var(--spacing-6);
+	border: 1px solid color-mix(in srgb, var(--color-danger) 25%, var(--color-border));
+	border-radius: var(--radius-lg);
+	background: color-mix(in srgb, var(--color-danger) 6%, var(--color-bg));
+}
+
+.ask-error-title {
+	font-weight: 600;
+	color: var(--color-text);
+	margin-bottom: var(--spacing-1);
+}
+
+.ask-error-description {
+	font-size: var(--font-size-sm);
+	color: var(--color-text-secondary);
+	margin-bottom: var(--spacing-4);
+}
+
+.ask-retry {
+	padding: var(--spacing-2) var(--spacing-4);
+	font-size: var(--font-size-sm);
+	font-weight: 500;
+	background: var(--color-bg);
+	color: var(--color-text);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	cursor: pointer;
+}
+
+.ask-retry:hover {
+	background: var(--color-surface);
+}
+
+.ask-answer {
+	padding: var(--spacing-6);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-bg);
+}
+
+.ask-answer-label {
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: var(--tracking-wider);
+	color: var(--color-brand);
+	margin-bottom: var(--spacing-4);
+}
+
+.ask-answer-text {
+	font-size: var(--font-size-lg);
+	line-height: var(--leading-relaxed);
+	color: var(--color-text);
+	overflow-wrap: break-word;
+}
+
+.ask-answer-text p {
+	margin-bottom: 1.25em;
+}
+
+.ask-answer-text p:last-child {
+	margin-bottom: 0;
+}
+
+.ask-answer-list {
+	margin: 0 0 1.25em;
+	padding-left: 1.4em;
+}
+
+.ask-answer-list:last-child {
+	margin-bottom: 0;
+}
+
+.ask-answer-list li {
+	margin-bottom: 0.5em;
+}
+
+.ask-answer-list li:last-child {
+	margin-bottom: 0;
+}
+
+.ask-sources {
+	margin-top: var(--spacing-8);
+	padding-top: var(--spacing-6);
+	border-top: 1px solid var(--color-border-subtle);
+}
+
+.ask-sources-title {
+	font-size: var(--font-size-base);
+	font-weight: 600;
+	margin-bottom: var(--spacing-4);
+}
+
+.ask-sources-empty {
+	font-size: var(--font-size-sm);
+	color: var(--color-muted);
+}
+
+.ask-sources-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-4);
+}
+
+.ask-source {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--spacing-1);
+	padding: var(--spacing-4);
+	border: 1px solid var(--color-border-subtle);
+	border-radius: var(--radius);
+	background: var(--color-bg-subtle);
+}
+
+.ask-source-type {
+	display: inline-flex;
+	padding: 0.2rem var(--spacing-2);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	letter-spacing: var(--tracking-wide);
+	text-transform: uppercase;
+	color: var(--color-text-secondary);
+	background: var(--color-surface);
+	border-radius: var(--radius-full);
+}
+
+.ask-source-title {
+	font-size: var(--font-size-base);
+	font-weight: 600;
+	color: var(--color-text);
+}
+
+.ask-source-description {
+	font-size: var(--font-size-sm);
+	color: var(--color-text-secondary);
+}
+
+.ask-source-link {
+	font-size: var(--font-size-sm);
+	font-weight: 500;
+	margin-top: var(--spacing-1);
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+	.ask-input-row {
+		flex-direction: column;
+	}
+
+	.ask-submit {
+		width: 100%;
+	}
+}

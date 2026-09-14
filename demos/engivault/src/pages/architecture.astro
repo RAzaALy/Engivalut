@@ -1,0 +1,444 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHeader from "../components/PageHeader.astro";
+import FlowDiagram from "../components/FlowDiagram.astro";
+import Button from "../components/Button.astro";
+import { canonicalUrl } from "../utils/seo";
+
+const SECTIONS = [
+	{ id: "overview", label: "Architecture Overview" },
+	{ id: "rendering", label: "Rendering Strategy" },
+	{ id: "content", label: "Content Architecture" },
+	{ id: "api", label: "API Architecture" },
+	{ id: "ai", label: "AI Architecture" },
+	{ id: "security", label: "Security" },
+	{ id: "performance", label: "Performance" },
+	{ id: "scalability", label: "Scalability" },
+	{ id: "testing", label: "Testing" },
+	{ id: "future", label: "Future Evolution" },
+];
+---
+
+<Base
+	title="EngiVault Architecture"
+	description="How EngiVault is built on Astro and EmDash: rendering strategy, content architecture, the AI assistant's retrieval-augmented design, security, performance, and how the system could scale."
+	canonical={canonicalUrl(Astro.url)}
+>
+	<div class="container page">
+		<PageHeader
+			eyebrow="Engineering Knowledge Intelligence"
+			title="EngiVault Architecture"
+			description="How the system is actually built — and, just as importantly, what was deliberately left out."
+		/>
+
+		<nav class="toc" aria-label="Page sections">
+			{SECTIONS.map((s) => (
+				<a href={`#${s.id}`}>{s.label}</a>
+			))}
+		</nav>
+
+		<section id="overview" class="section">
+			<h2 class="section-title">1. Architecture Overview</h2>
+			<p>
+				EngiVault is a content site built <strong>on top of</strong> EmDash — an existing
+				Astro-native CMS already present in this repository — not a new backend written
+				from scratch. Every content type (articles, ADRs, incident reports) is a real,
+				schema-defined EmDash collection with typed fields, not a hand-rolled data model.
+				The only genuinely new server logic in the whole system is the Engineering AI
+				Assistant's retrieval + LLM call.
+			</p>
+			<p>Two request flows cover essentially everything EngiVault does:</p>
+
+			<h3 class="flow-title">Reading content</h3>
+			<FlowDiagram steps={["Browser", "Astro (SSR)", "EmDash CMS / API", "Database"]} />
+			<p class="flow-caption">
+				Every page request — homepage, listings, a single article, search — runs this
+				same path. Astro queries EmDash's Live Collections API on the server, EmDash
+				resolves that against the database, and fully-rendered HTML goes back to the
+				browser. No client-side data fetching, no separate backend.
+			</p>
+
+			<h3 class="flow-title">Asking the AI assistant</h3>
+			<FlowDiagram steps={["Astro (/ask page)", "/api/ask", "Content Retrieval", "LLM"]} />
+			<p class="flow-caption">
+				The one exception to "just render content": a question posted from the{" "}
+				<code>/ask</code> page hits this site's own <code>/api/ask</code> endpoint, which
+				retrieves relevant EmDash content <em>before</em> calling the LLM, so the model
+				answers from real documents instead of guessing.
+			</p>
+		</section>
+
+		<section id="rendering" class="section">
+			<h2 class="section-title">2. Rendering Strategy</h2>
+			<p>
+				Every page is server-rendered on request (Astro's <code>output: "server"</code>{" "}
+				with the Node adapter) — there is no static-generation build step for content
+				pages, and no client-side router.
+			</p>
+			<div class="why">
+				<p class="why-label">Why server-first rendering</p>
+				<p>
+					EngiVault's content changes after deploy: an editor publishes an article, an
+					incident report gets updated, an ADR moves from proposed to accepted. Static
+					generation would require a full rebuild for every one of those changes, which
+					defeats the point of having a CMS with a live admin panel. Server rendering
+					means every request reflects the database at that exact moment, with zero
+					rebuild step — the same tradeoff EmDash's own starter templates make by
+					default.
+				</p>
+			</div>
+			<div class="why">
+				<p class="why-label">Why React islands, not a React SPA</p>
+				<p>
+					Out of roughly a dozen routes, exactly two need client-side state: the header's
+					live search dropdown (an island EmDash itself provides) and the{" "}
+					<code>/ask</code> assistant's question/answer flow (<code>AskAssistant.tsx</code>
+					, mounted with <code>client:load</code>). Every other page — nav, cards, badges,
+					detail pages, the knowledge listing, the search results page — is plain Astro
+					and ships no framework JavaScript at all. A full SPA would mean re-implementing
+					routing and SEO handling Astro already provides for free, and would ship a
+					React runtime to visitors who only ever read a static article.
+				</p>
+			</div>
+		</section>
+
+		<section id="content" class="section">
+			<h2 class="section-title">3. Content Architecture</h2>
+			<p>
+				Collections aren't TypeScript interfaces hand-written into the codebase — they're
+				rows in EmDash's own <code>_emdash_collections</code> / <code>_emdash_fields</code>{" "}
+				tables, declared once in <code>seed/seed.json</code>, which EmDash's schema
+				registry turns into real SQL tables (<code>ec_articles</code>,{" "}
+				<code>ec_adrs</code>, <code>ec_incidents</code>) with typed columns — not a
+				generic key-value blob. TypeScript types (<code>emdash-env.d.ts</code>) are{" "}
+				<em>generated</em> from that live schema by EmDash's own tooling, so the frontend's
+				types can never silently drift from the database.
+			</p>
+			<div class="why">
+				<p class="why-label">Why EmDash as CMS infrastructure, and why structured content</p>
+				<p>
+					Building schema management, drafts/revisions, taxonomies, and an admin UI from
+					scratch would have consumed most of the available time on infrastructure that
+					already exists in this repository. Typed fields (an incident's{" "}
+					<code>severity</code> enum, an ADR's <code>decision_status</code> enum) are
+					what let the UI render real status badges and filters, and let the AI
+					assistant extract clean plain text per document instead of scraping meaning
+					out of unstructured blobs.
+				</p>
+			</div>
+			<p>
+				Tags and categories use EmDash's built-in taxonomy system (<code>getTermsForEntries</code>
+				, <code>getTaxonomyTerms</code>) rather than a custom tagging table.
+			</p>
+		</section>
+
+		<section id="api" class="section">
+			<h2 class="section-title">4. API Architecture</h2>
+			<p>There are two API surfaces, and only one of them was written for this project:</p>
+			<ul>
+				<li>
+					<strong>EmDash's own REST API</strong> (<code>/_emdash/api/*</code>) — content
+					CRUD, search, taxonomies, auth. Provided entirely by the CMS; EngiVault never
+					reimplements this.
+				</li>
+				<li>
+					<strong><code>/api/ask</code></strong> — the one custom endpoint, a plain
+					Astro API route following Astro's own convention (a <code>POST</code> export in{" "}
+					<code>src/pages/api/ask.ts</code>), delegating to a server-only module (
+					<code>src/lib/knowledge-assistant.ts</code>).
+				</li>
+			</ul>
+			<p>
+				Every data access in either surface goes through EmDash's own query functions (
+				<code>getEmDashCollection</code>, <code>getEmDashEntry</code>, <code>search</code>,{" "}
+				<code>getTermsForEntries</code>) — no separate ORM, no raw SQL written for this
+				project.
+			</p>
+		</section>
+
+		<section id="ai" class="section">
+			<h2 class="section-title">5. AI Architecture</h2>
+			<p>
+				The assistant is retrieval-augmented, not a raw pass-through to a chat model: a
+				question is first matched against EmDash's content via full-text search, and only
+				the matched documents' text is ever placed in the prompt.
+			</p>
+			<ol class="ai-steps">
+				<li>Extract keywords from the question (stopwords stripped, OR-joined).</li>
+				<li>
+					Run EmDash's existing FTS5 <code>search()</code> across articles, ADRs, and
+					incidents — top 5 matches, ranked by BM25.
+				</li>
+				<li>
+					Fetch each match's full content and flatten it to plain text with EmDash's{" "}
+					<code>extractPlainText</code>, truncated to a bounded excerpt per document.
+				</li>
+				<li>Send the question plus that bounded context (never the whole database) to the LLM.</li>
+				<li>
+					Return the model's answer alongside <code>sources</code> built from the actual
+					retrieved documents — never invented by the model.
+				</li>
+			</ol>
+			<div class="why">
+				<p class="why-label">Why server-side AI calls</p>
+				<p>
+					The LLM provider needs a secret API key. If the browser ever held it or called
+					the provider directly, it would be visible in the network tab to anyone who
+					opened devtools. The React island only ever talks to this site's own{" "}
+					<code>/api/ask</code>; that server-only route reads the key from{" "}
+					<code>process.env</code> (never <code>import.meta.env</code>, which Vite would
+					inline into the client bundle) and is the only code that ever calls the LLM.
+				</p>
+			</div>
+			<div class="why">
+				<p class="why-label">Why existing search instead of an external search engine</p>
+				<p>
+					EmDash already ships SQLite FTS5 with triggers that keep the index in sync on
+					every content write — full-text search was already "free," reliable, and
+					zero-ops before this project touched anything. At twelve documents, keyword
+					ranking answers every example question correctly. Standing up Elasticsearch,
+					Pinecone, or a vector database for that would be infrastructure looking for a
+					problem — see <a href="#future">Future Evolution</a> for when that calculus
+					actually changes.
+				</p>
+			</div>
+		</section>
+
+		<section id="security" class="section">
+			<h2 class="section-title">6. Security</h2>
+			<ul>
+				<li>
+					<strong>Secrets never reach the browser.</strong> The LLM key is read via{" "}
+					<code>process.env</code> inside <code>/api/ask</code> and{" "}
+					<code>knowledge-assistant.ts</code> only — never in a component that ships to
+					the client, never hardcoded.
+				</li>
+				<li>
+					<strong>Input is validated before use.</strong> <code>/api/ask</code> rejects
+					empty questions, questions over 500 characters, and malformed JSON with a 400
+					before any retrieval or LLM call happens.
+				</li>
+				<li>
+					<strong>Requests are rate-limited.</strong> A per-IP, in-memory sliding window
+					(10 requests/minute) returns 429 once exceeded — see the{" "}
+					<a href="#scalability">Scalability</a> section for its known limit.
+				</li>
+				<li>
+					<strong>Upstream errors are sanitized.</strong> The LLM provider's raw error
+					body is logged server-side only; the client only ever sees a generic,
+					non-identifying message.
+				</li>
+				<li>
+					<strong>No new injection surface.</strong> All content queries go through
+					EmDash's parameterized query functions; this project introduces no raw SQL.
+				</li>
+			</ul>
+		</section>
+
+		<section id="performance" class="section">
+			<h2 class="section-title">7. Performance</h2>
+			<p>
+				List pages batch their per-item lookups instead of querying once per row — e.g.
+				the knowledge listing fetches tags for every visible item with a single{" "}
+				<code>getTermsForEntries</code> call per collection, not one query per card. The
+				AI assistant bounds cost and latency the same way: five documents, each excerpted
+				to roughly 900 characters, regardless of how large the knowledge base grows —
+				token usage stays predictable as content scales.
+			</p>
+		</section>
+
+		<section id="scalability" class="section">
+			<h2 class="section-title">8. Scalability</h2>
+			<p>
+				Content and query load scale exactly the way any EmDash site does — the same
+				SQLite/D1/Postgres story, since nothing here introduces a parallel data layer. Two
+				things are honestly demo-scale today and worth naming rather than glossing over:
+			</p>
+			<ul>
+				<li>
+					The <code>/api/ask</code> rate limiter is in-memory, scoped to one process — a
+					multi-instance deployment would need a shared store (Redis, or a
+					database-backed counter) for it to remain correct across instances.
+				</li>
+				<li>
+					FTS5 keyword search scales with content volume up to a point; see{" "}
+					<a href="#future">Future Evolution</a> for where that point likely is.
+				</li>
+			</ul>
+		</section>
+
+		<section id="testing" class="section">
+			<h2 class="section-title">9. Testing</h2>
+			<p>
+				What was actually done for this build: <code>astro check</code> (TypeScript) after
+				every change, <code>astro build</code> verified after every change, and live
+				browser verification of every user-facing flow — including deliberately exercising
+				edge cases (empty questions, over-length questions, malformed JSON, the rate-limit
+				boundary, and a zero-results search query) rather than only the happy path.
+			</p>
+			<p>
+				No automated test suite (unit/integration/e2e) was written for this demo phase —
+				worth saying plainly rather than implying otherwise. A production hardening pass
+				would add vitest coverage for <code>knowledge-assistant.ts</code>'s retrieval and
+				prompt-building logic against a real seeded test database, following this
+				repository's own testing conventions (no DB mocks, dialect-agnostic test helpers).
+			</p>
+		</section>
+
+		<section id="future" class="section">
+			<h2 class="section-title">10. Future Evolution</h2>
+			<p>
+				The current design deliberately stops short of a few things that a much larger
+				knowledge base would eventually need. None of the following exists today, and
+				none of it should — this is what "the next step" looks like, not a roadmap
+				commitment:
+			</p>
+			<FlowDiagram
+				tone="neutral"
+				steps={[
+					"CMS",
+					"Event Queue",
+					"Search Index",
+					"Embedding Pipeline",
+					"Vector Database",
+					"AI Retrieval Service",
+				]}
+			/>
+			<ul class="future-list">
+				<li><strong>Event Queue</strong> — react to content publish/update events asynchronously instead of indexing inline on write.</li>
+				<li><strong>Search Index</strong> — a dedicated search service, once keyword ranking on a growing corpus stops being precise enough.</li>
+				<li><strong>Embedding Pipeline</strong> — generate vector embeddings for content on publish, for semantic (not just keyword) retrieval.</li>
+				<li><strong>Vector Database</strong> — store and query those embeddings at a scale FTS5 wasn't designed for.</li>
+				<li><strong>AI Retrieval Service</strong> — a dedicated retrieval layer the assistant calls instead of querying the CMS directly.</li>
+			</ul>
+			<p>
+				The trigger for actually building this isn't a fixed document count — it's when
+				keyword search starts missing questions that are semantically related but share
+				no literal words with the source text (a real, current limitation: EmDash's{" "}
+				<code>search()</code> AND-joins bare terms, which is why <code>/api/ask</code>{" "}
+				strips stopwords and OR-joins keywords before searching). Introducing a vector
+				database before that point would be exactly the kind of premature complexity this
+				project's own <a href="/architecture/decisions">architecture decisions</a> argue
+				against.
+			</p>
+		</section>
+
+		<div class="cta">
+			<Button href="/architecture/decisions">View Architecture Decision Records →</Button>
+		</div>
+	</div>
+</Base>
+
+<style>
+	.page {
+		padding-block: var(--spacing-12) var(--spacing-24);
+	}
+
+	.toc {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2) var(--spacing-4);
+		padding: var(--spacing-4) var(--spacing-5);
+		margin-bottom: var(--spacing-12);
+		border: 1px solid var(--color-border-subtle);
+		border-radius: var(--radius-lg);
+		background: var(--color-bg-subtle);
+		font-size: var(--font-size-sm);
+	}
+
+	.toc a {
+		color: var(--color-text-secondary);
+	}
+
+	.toc a:hover {
+		color: var(--color-brand);
+	}
+
+	.section {
+		max-width: var(--content-width);
+		margin-bottom: var(--spacing-16);
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+	}
+
+	.section p {
+		margin-bottom: 1.25em;
+	}
+
+	.section ul,
+	.section ol {
+		margin: 0 0 1.25em;
+		padding-left: 1.4em;
+	}
+
+	.section li {
+		margin-bottom: 0.6em;
+	}
+
+	.section-title {
+		font-size: var(--font-size-2xl);
+		margin-bottom: var(--spacing-5);
+		padding-bottom: var(--spacing-3);
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.flow-title {
+		font-size: var(--font-size-base);
+		font-family: var(--font-mono);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--color-muted);
+		margin-top: var(--spacing-8);
+		margin-bottom: var(--spacing-2);
+	}
+
+	.flow-caption {
+		font-size: var(--font-size-base);
+		color: var(--color-text-secondary);
+	}
+
+	code {
+		font-family: var(--font-mono);
+		font-size: 0.9em;
+		background: var(--color-surface);
+		padding: 0.15em 0.4em;
+		border-radius: var(--radius);
+	}
+
+	.why {
+		margin: var(--spacing-6) 0;
+		padding: var(--spacing-5) var(--spacing-6);
+		border: 1px solid color-mix(in srgb, var(--color-brand) 25%, var(--color-border));
+		border-radius: var(--radius-lg);
+		background: color-mix(in srgb, var(--color-brand) 5%, var(--color-bg));
+	}
+
+	.why p:last-child {
+		margin-bottom: 0;
+	}
+
+	.why-label {
+		font-family: var(--font-mono);
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wider);
+		color: var(--color-brand);
+		margin-bottom: var(--spacing-2);
+	}
+
+	.ai-steps {
+		padding-left: 1.6em;
+	}
+
+	.future-list {
+		font-size: var(--font-size-base);
+	}
+
+	.cta {
+		display: flex;
+		justify-content: center;
+		padding-top: var(--spacing-8);
+		border-top: 1px solid var(--color-border-subtle);
+	}
+</style>

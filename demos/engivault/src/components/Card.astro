@@ -1,0 +1,124 @@
+---
+/**
+ * Generic content card used across articles/ADRs/incidents list pages.
+ * Slots: `eyebrow` (small label above the title, e.g. a badge row),
+ * `title` (required), `meta` (byline/date row), `default` (excerpt/summary),
+ * `footer` (tags).
+ */
+interface Props {
+	href: string;
+	class?: string;
+	/** Heading level for the card title — h3 by default (card grids under a
+	 * section h2), pass "h2" for grids that sit directly under the page's
+	 * own h1 with no intervening section heading. */
+	headingLevel?: "h2" | "h3";
+}
+
+const { href, class: className, headingLevel = "h3" } = Astro.props;
+const TitleTag = headingLevel;
+---
+
+<article class:list={["card", className]}>
+	<a href={href} class="card-link">
+		<div class="card-eyebrow"><slot name="eyebrow" /></div>
+		<TitleTag class="card-title"><slot name="title" /></TitleTag>
+		<div class="card-meta"><slot name="meta" /></div>
+		<div class="card-excerpt"><slot /></div>
+	</a>
+	<div class="card-footer"><slot name="footer" /></div>
+</article>
+
+<style>
+	.card {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		padding: var(--spacing-6);
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		transition:
+			border-color var(--transition-base),
+			box-shadow var(--transition-base),
+			transform var(--transition-base);
+	}
+
+	.card:hover {
+		border-color: color-mix(in srgb, var(--color-brand) 40%, var(--color-border));
+		box-shadow: var(--shadow-md);
+		transform: translateY(-2px);
+	}
+
+	.card-link {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.card-eyebrow:empty {
+		display: none;
+	}
+
+	.card-eyebrow {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		margin-bottom: var(--spacing-3);
+	}
+
+	.card-title {
+		font-size: var(--font-size-lg);
+		font-weight: var(--font-weight-heading);
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-snug);
+		margin-bottom: var(--spacing-2);
+		transition: color var(--transition-fast);
+	}
+
+	.card-link:hover .card-title {
+		color: var(--color-brand);
+	}
+
+	.card-meta {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		font-size: var(--font-size-xs);
+		font-family: var(--font-mono);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-3);
+	}
+
+	.card-meta:empty {
+		display: none;
+	}
+
+	.card-excerpt {
+		font-size: var(--font-size-sm);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		flex: 1;
+	}
+
+	.card-excerpt:empty {
+		display: none;
+	}
+
+	.card-footer:empty {
+		display: none;
+	}
+
+	.card-footer {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		margin-top: var(--spacing-4);
+	}
+</style>

@@ -1,0 +1,76 @@
+---
+/**
+ * Generic "soft pill" badge. Status/severity badges (StatusBadge,
+ * SeverityBadge, IncidentStatusBadge) wrap this with a fixed tone mapping
+ * — use those in content UI; use Badge directly for plain tags/labels.
+ */
+export type BadgeTone = "neutral" | "brand" | "success" | "warning" | "danger" | "info";
+
+interface Props {
+	tone?: BadgeTone;
+	mono?: boolean;
+	class?: string;
+}
+
+const { tone = "neutral", mono = false, class: className } = Astro.props;
+const classes = ["badge", `badge-${tone}`, mono && "badge-mono", className].filter(Boolean).join(" ");
+---
+
+<span class={classes}><slot /></span>
+
+<style>
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-1);
+		padding: 0.2rem var(--spacing-2);
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		line-height: 1.4;
+		border-radius: var(--radius-full);
+		border: 1px solid transparent;
+		white-space: nowrap;
+	}
+
+	.badge-mono {
+		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-wide);
+		text-transform: uppercase;
+	}
+
+	.badge-neutral {
+		color: var(--color-text-secondary);
+		background: var(--color-surface);
+		border-color: var(--color-border);
+	}
+
+	.badge-brand {
+		color: var(--color-brand);
+		background: color-mix(in srgb, var(--color-brand) 14%, var(--color-bg-subtle));
+		border-color: color-mix(in srgb, var(--color-brand) 30%, transparent);
+	}
+
+	.badge-success {
+		color: var(--color-success);
+		background: color-mix(in srgb, var(--color-success) 14%, var(--color-bg-subtle));
+		border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
+	}
+
+	.badge-warning {
+		color: var(--color-warning);
+		background: color-mix(in srgb, var(--color-warning) 14%, var(--color-bg-subtle));
+		border-color: color-mix(in srgb, var(--color-warning) 30%, transparent);
+	}
+
+	.badge-danger {
+		color: var(--color-danger);
+		background: color-mix(in srgb, var(--color-danger) 14%, var(--color-bg-subtle));
+		border-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
+	}
+
+	.badge-info {
+		color: var(--color-info);
+		background: color-mix(in srgb, var(--color-info) 14%, var(--color-bg-subtle));
+		border-color: color-mix(in srgb, var(--color-info) 30%, transparent);
+	}
+</style>

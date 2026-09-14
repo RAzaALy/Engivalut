@@ -1,0 +1,70 @@
+---
+interface Props {
+	title: string;
+	description?: string;
+	code?: string;
+}
+
+const { title, description, code } = Astro.props;
+---
+
+<div class="error-state" role="alert">
+	<div class="error-icon" aria-hidden="true">
+		<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+			<circle cx="12" cy="12" r="9" />
+			<path d="M12 8v5M12 16h.01" stroke-linecap="round" />
+		</svg>
+	</div>
+	{code && <p class="error-code">{code}</p>}
+	<p class="error-title">{title}</p>
+	{description && <p class="error-description">{description}</p>}
+	<slot />
+</div>
+
+<style>
+	.error-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		padding: var(--spacing-16) var(--spacing-6);
+		border: 1px solid color-mix(in srgb, var(--color-danger) 25%, var(--color-border));
+		border-radius: var(--radius-lg);
+		background: color-mix(in srgb, var(--color-danger) 6%, var(--color-bg));
+	}
+
+	.error-icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 48px;
+		height: 48px;
+		margin-bottom: var(--spacing-4);
+		color: var(--color-danger);
+		background: color-mix(in srgb, var(--color-danger) 14%, var(--color-bg-subtle));
+		border-radius: var(--radius-full);
+	}
+
+	.error-code {
+		font-family: var(--font-mono);
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-wide);
+		text-transform: uppercase;
+		color: var(--color-danger);
+		margin-bottom: var(--spacing-2);
+	}
+
+	.error-title {
+		font-size: var(--font-size-lg);
+		font-weight: 600;
+		color: var(--color-text);
+	}
+
+	.error-description {
+		margin-top: var(--spacing-2);
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+		max-width: 36ch;
+	}
+</style>

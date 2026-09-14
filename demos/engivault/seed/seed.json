@@ -1,0 +1,1425 @@
+{
+	"$schema": "https://emdashcms.com/seed.schema.json",
+	"version": "1",
+	"meta": {
+		"name": "EngiVault",
+		"description": "AI Engineering Knowledge Hub — articles, ADRs, and incident reports",
+		"author": "EngiVault"
+	},
+	"settings": {
+		"title": "EngiVault",
+		"tagline": "AI Engineering Knowledge Hub"
+	},
+	"collections": [
+		{
+			"slug": "articles",
+			"label": "Articles",
+			"labelSingular": "Article",
+			"description": "Engineering articles: guides, deep dives, and write-ups.",
+			"group": "Engineering Knowledge",
+			"supports": [
+				"drafts",
+				"revisions",
+				"search",
+				"seo"
+			],
+			"urlPattern": "/articles/{slug}",
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "summary",
+					"label": "Summary",
+					"type": "text",
+					"searchable": true
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "author",
+					"label": "Author",
+					"type": "string",
+					"searchable": true
+				},
+				{
+					"slug": "featured",
+					"label": "Featured",
+					"type": "boolean",
+					"defaultValue": false
+				}
+			]
+		},
+		{
+			"slug": "adrs",
+			"label": "Architecture Decisions",
+			"labelSingular": "Architecture Decision",
+			"description": "Architecture Decision Records (ADRs): the context, decision, and consequences behind a technical choice.",
+			"group": "Engineering Knowledge",
+			"supports": [
+				"drafts",
+				"revisions",
+				"search",
+				"seo"
+			],
+			"urlPattern": "/adrs/{slug}",
+			"dateField": "date",
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "decision_status",
+					"label": "Status",
+					"type": "select",
+					"required": true,
+					"defaultValue": "proposed",
+					"validation": {
+						"options": [
+							"proposed",
+							"accepted",
+							"deprecated",
+							"superseded"
+						]
+					}
+				},
+				{
+					"slug": "problem",
+					"label": "Problem",
+					"type": "portableText",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "decision",
+					"label": "Decision",
+					"type": "portableText",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "alternatives",
+					"label": "Alternatives Considered",
+					"type": "portableText",
+					"searchable": true
+				},
+				{
+					"slug": "consequences",
+					"label": "Consequences",
+					"type": "portableText",
+					"searchable": true
+				},
+				{
+					"slug": "author",
+					"label": "Author",
+					"type": "string",
+					"searchable": true
+				},
+				{
+					"slug": "date",
+					"label": "Decision Date",
+					"type": "datetime",
+					"required": true
+				}
+			]
+		},
+		{
+			"slug": "incidents",
+			"label": "Incidents",
+			"labelSingular": "Incident",
+			"description": "Incident reports: severity, root cause, resolution, and lessons learned.",
+			"group": "Engineering Knowledge",
+			"supports": [
+				"drafts",
+				"revisions",
+				"search",
+				"seo"
+			],
+			"urlPattern": "/incidents/{slug}",
+			"dateField": "date",
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "severity",
+					"label": "Severity",
+					"type": "select",
+					"required": true,
+					"validation": {
+						"options": [
+							"sev1",
+							"sev2",
+							"sev3",
+							"sev4"
+						]
+					}
+				},
+				{
+					"slug": "incident_status",
+					"label": "Status",
+					"type": "select",
+					"required": true,
+					"defaultValue": "investigating",
+					"validation": {
+						"options": [
+							"investigating",
+							"monitoring",
+							"resolved"
+						]
+					}
+				},
+				{
+					"slug": "date",
+					"label": "Incident Date",
+					"type": "datetime",
+					"required": true
+				},
+				{
+					"slug": "summary",
+					"label": "Summary",
+					"type": "text",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "root_cause",
+					"label": "Root Cause",
+					"type": "portableText",
+					"searchable": true
+				},
+				{
+					"slug": "resolution",
+					"label": "Resolution",
+					"type": "portableText",
+					"searchable": true
+				},
+				{
+					"slug": "lessons_learned",
+					"label": "Lessons Learned",
+					"type": "portableText",
+					"searchable": true
+				},
+				{
+					"slug": "author",
+					"label": "Author",
+					"type": "string",
+					"searchable": true
+				}
+			]
+		}
+	],
+	"taxonomies": [
+		{
+			"name": "category",
+			"label": "Categories",
+			"labelSingular": "Category",
+			"hierarchical": true,
+			"collections": [
+				"articles"
+			],
+			"terms": [
+				{
+					"slug": "engineering",
+					"label": "Engineering"
+				},
+				{
+					"slug": "product",
+					"label": "Product"
+				},
+				{
+					"slug": "platform",
+					"label": "Platform"
+				}
+			]
+		},
+		{
+			"name": "tag",
+			"label": "Tags",
+			"labelSingular": "Tag",
+			"hierarchical": false,
+			"collections": [
+				"articles",
+				"adrs",
+				"incidents"
+			],
+			"terms": [
+				{
+					"slug": "backend",
+					"label": "Backend"
+				},
+				{
+					"slug": "frontend",
+					"label": "Frontend"
+				},
+				{
+					"slug": "database",
+					"label": "Database"
+				},
+				{
+					"slug": "security",
+					"label": "Security"
+				},
+				{
+					"slug": "performance",
+					"label": "Performance"
+				},
+				{
+					"slug": "api",
+					"label": "API"
+				},
+				{
+					"slug": "architecture",
+					"label": "Architecture"
+				},
+				{
+					"slug": "typescript",
+					"label": "TypeScript"
+				},
+				{
+					"slug": "reliability",
+					"label": "Reliability"
+				},
+				{
+					"slug": "graphql",
+					"label": "GraphQL"
+				},
+				{
+					"slug": "jobs",
+					"label": "Jobs"
+				},
+				{
+					"slug": "deployment",
+					"label": "Deployment"
+				}
+			]
+		}
+	],
+	"menus": [
+		{
+			"name": "primary",
+			"label": "Primary Navigation",
+			"items": [
+				{ "type": "custom", "label": "Articles", "url": "/articles" },
+				{ "type": "custom", "label": "Architecture Decisions", "url": "/adrs" },
+				{ "type": "custom", "label": "Incidents", "url": "/incidents" }
+			]
+		}
+	],
+	"content": {
+		"articles": [
+			{
+				"id": "article-1",
+				"slug": "astro-ssr-vs-static-rendering",
+				"status": "published",
+				"data": {
+					"title": "Astro SSR vs Static Rendering",
+					"summary": "When to render pages on every request versus building them once at deploy time — and how EngiVault settled the question for a CMS-backed site.",
+					"author": "Jordan Lee",
+					"featured": true,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Astro supports two fundamentally different rendering strategies for the same component code: static site generation (SSG), where every page is built once at deploy time and served as a plain file, and server-side rendering (SSR), where each request runs the page's frontmatter and produces HTML on demand.",
+									"_key": "k1"
+								}
+							],
+							"_key": "b1"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "For a CMS-backed site like EngiVault, content changes after deploy — an editor publishes an article, an incident gets updated, an ADR moves from proposed to accepted. Static rendering would require a full rebuild and redeploy on every content change, which defeats the point of having a CMS with a live admin panel.",
+									"_key": "k2"
+								}
+							],
+							"_key": "b2"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "SSR trades a small per-request cost (typically a handful of database round-trips) for content that is always current. EmDash's Live Collections API (getEmDashCollection) is designed for exactly this: it queries the database directly inside an SSR request, so a page reflects the database at the moment it's requested rather than the moment it was built.",
+									"_key": "k3"
+								}
+							],
+							"_key": "b3"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The cost is real but boundable. The project's own performance conventions require every logged-out route to justify its query count and prefer batching over per-item round-trips — for example, fetching all tags for a list of articles in one query instead of one query per article.",
+									"_key": "k4"
+								}
+							],
+							"_key": "b4"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The practical rule: use SSR by default for anything backed by editable content, and reserve static generation for pages that genuinely never change between deploys, such as a hand-written legal page with no CMS dependency.",
+									"_key": "k5"
+								}
+							],
+							"_key": "b5"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Hybrid is also possible — Astro allows per-route prerendering — but mixing the two adds operational complexity (cache invalidation, stale builds) that isn't worth it until traffic or infrastructure cost actually demands it.",
+									"_key": "k6"
+								}
+							],
+							"_key": "b6"
+						}
+					]
+				},
+				"taxonomies": {
+					"category": [
+						"platform"
+					],
+					"tag": [
+						"frontend",
+						"architecture",
+						"performance"
+					]
+				}
+			},
+			{
+				"id": "article-2",
+				"slug": "typescript-api-design-guidelines",
+				"status": "published",
+				"data": {
+					"title": "TypeScript API Design Guidelines",
+					"summary": "Practical conventions for designing TypeScript APIs that stay type-safe from the database to the client, drawn from building EngiVault on EmDash.",
+					"author": "Priya Nair",
+					"featured": false,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "A TypeScript API is only as strongly typed as its weakest boundary. It's easy to write a fully typed handler function and then undo all of it with a single 'as' cast on request.json().",
+									"_key": "k7"
+								}
+							],
+							"_key": "b7"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Validate at the edge, not in the middle. Every request body and query string should pass through a schema (Zod, in EmDash's case) before a single line of business logic runs. The handler then works with a fully typed, already-validated object — no defensive null checks scattered through the function body.",
+									"_key": "k8"
+								}
+							],
+							"_key": "b8"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Return a discriminated union, not a thrown exception, for expected failure modes. A result type like { success: true, data } | { success: false, error } forces every caller to handle the failure case at compile time, whereas a thrown error only surfaces failures the caller remembered to catch.",
+									"_key": "k9"
+								}
+							],
+							"_key": "b9"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Keep the handler layer separate from the HTTP layer. A handler that takes a database connection and typed arguments and returns a result object can be unit tested without spinning up a server, and reused from a CLI command or a background job with zero HTTP-specific code.",
+									"_key": "k10"
+								}
+							],
+							"_key": "b10"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Generate types from the source of truth instead of hand-maintaining parallel type declarations. When content types live in a database, generating TypeScript interfaces from the live schema eliminates an entire category of bugs where the types and the database silently drift apart.",
+									"_key": "k11"
+								}
+							],
+							"_key": "b11"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Prefer additive changes to a public API type. Adding an optional field is backward compatible; renaming or narrowing an existing field is not, and needs a deliberate versioning decision rather than a quiet edit.",
+									"_key": "k12"
+								}
+							],
+							"_key": "b12"
+						}
+					]
+				},
+				"taxonomies": {
+					"category": [
+						"engineering"
+					],
+					"tag": [
+						"backend",
+						"api",
+						"typescript"
+					]
+				}
+			},
+			{
+				"id": "article-3",
+				"slug": "designing-reliable-rest-apis",
+				"status": "published",
+				"data": {
+					"title": "Designing Reliable REST APIs",
+					"summary": "Idempotency, pagination, and error shapes: the three things that separate a REST API that survives production traffic from one that doesn't.",
+					"author": "Jordan Lee",
+					"featured": false,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Most REST API reliability problems aren't about the happy path — they're about what happens when a request is retried, arrives out of order, or returns more data than a client expects to page through in one response.",
+									"_key": "k13"
+								}
+							],
+							"_key": "b13"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Idempotency is the first line of defense against retries. A client behind a flaky network will retry a timed-out POST, and without an idempotency key the server has no way to tell a legitimate second request from a duplicate of the first. Passing back a revision token on every read, and requiring it on every write, has the same effect for updates: a write against a stale revision fails loudly instead of silently clobbering a concurrent edit.",
+									"_key": "k14"
+								}
+							],
+							"_key": "b14"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Never return a bare array from a list endpoint. It looks fine on day one, and then the collection grows past a single page and there is no way to add pagination without a breaking change. Returning { items, nextCursor } from the start costs nothing when the collection is small and saves a version bump later.",
+									"_key": "k15"
+								}
+							],
+							"_key": "b15"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Cursor-based pagination beats offset-based pagination for anything that changes while being paged through. An offset shifts under a client mid-page if a row is inserted or deleted; a cursor built from a stable sort key doesn't.",
+									"_key": "k16"
+								}
+							],
+							"_key": "b16"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Error responses need a stable, machine-readable code in addition to a human-readable message. VALIDATION_ERROR lets a client branch on the failure type; exposing raw internal error text to a client can also leak implementation details.",
+									"_key": "k17"
+								}
+							],
+							"_key": "b17"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Authorization checks belong in the route, not buried in the handler where they're easy to forget on the next new route. A route that checks a permission before calling the handler, every time, is much harder to accidentally ship without a check than one where the handler decides.",
+									"_key": "k18"
+								}
+							],
+							"_key": "b18"
+						}
+					]
+				},
+				"taxonomies": {
+					"category": [
+						"engineering"
+					],
+					"tag": [
+						"backend",
+						"api",
+						"reliability"
+					]
+				}
+			},
+			{
+				"id": "article-4",
+				"slug": "frontend-performance-optimization",
+				"status": "published",
+				"data": {
+					"title": "Frontend Performance Optimization",
+					"summary": "Where the real performance wins are for a content-heavy site: fewer round-trips, smaller JavaScript payloads, and rendering on the server by default.",
+					"author": "Priya Nair",
+					"featured": false,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The biggest performance lever on a content site is usually not clever code — it's how much JavaScript ships to the browser at all. A page built from server-rendered HTML with a handful of interactive islands (a search box, a chat widget) ships a fraction of the JavaScript of an equivalent single-page app, because most of the page never needs to run client-side at all.",
+									"_key": "k19"
+								}
+							],
+							"_key": "b19"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Database round-trips on the server matter just as much as bytes on the wire. A page that makes one query per list item instead of one batched query for the whole list will be slow regardless of how small its JavaScript bundle is. Batching with a single WHERE id IN (...) query, rather than looping and querying per row, is consistently the highest-leverage backend change on a list page.",
+									"_key": "k20"
+								}
+							],
+							"_key": "b20"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Images are usually the largest payload on a page. Serving a responsively sized, modern-format image only when it's about to be visible does more for load time than almost any JavaScript optimization.",
+									"_key": "k21"
+								}
+							],
+							"_key": "b21"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Measure before optimizing. A query-count snapshot per route, checked on every change, catches an accidental N+1 query before it reaches production — waiting for a user-reported slow page to notice a regression is much more expensive than catching it in review.",
+									"_key": "k22"
+								}
+							],
+							"_key": "b22"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Cache what's safe to cache, and nothing more. A per-request cache that deduplicates identical queries within a single page render costs nothing to add and eliminates an entire class of redundant round-trips when multiple components independently need the same piece of data.",
+									"_key": "k23"
+								}
+							],
+							"_key": "b23"
+						}
+					]
+				},
+				"taxonomies": {
+					"category": [
+						"product"
+					],
+					"tag": [
+						"frontend",
+						"performance"
+					]
+				}
+			},
+			{
+				"id": "article-5",
+				"slug": "event-driven-architecture",
+				"status": "published",
+				"data": {
+					"title": "Event-Driven Architecture",
+					"summary": "Using lifecycle hooks instead of tight coupling: how EmDash's plugin hook pipeline lets independent features react to content events without touching the code that publishes them.",
+					"author": "Jordan Lee",
+					"featured": false,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Event-driven architecture, at its simplest, means that the code performing an action doesn't need to know who's listening for it. Publishing a piece of content should fire a content:afterPublish event; whether zero, one, or five different features react to that event is a decision made far away from the code that publishes it.",
+									"_key": "k24"
+								}
+							],
+							"_key": "b24"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The alternative — direct calls from the publish handler to every interested feature — creates the kind of coupling where adding a new feature (send a notification, update a search index, log an audit entry) means editing a function that has nothing to do with any of those things, just to add one more call.",
+									"_key": "k25"
+								}
+							],
+							"_key": "b25"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "A hook pipeline formalizes this: features register a handler for a named event, with an explicit priority and an error policy (should a failing handler block the operation, or just log and continue). The code that fires the event doesn't import or know about any of the handlers — it just announces that something happened.",
+									"_key": "k26"
+								}
+							],
+							"_key": "b26"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "This pattern trades a small amount of indirection — it's harder to grep for 'everything that happens when content is published' than to read one function — for the ability to add or remove entire features without touching the core write path. That trade is almost always worth it once a system has more than two or three features that care about the same events.",
+									"_key": "k27"
+								}
+							],
+							"_key": "b27"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The failure mode to design against is a handler that throws and takes down the operation it's merely reacting to. An audit-logging handler failing should never block a publish; an errorPolicy of 'continue' on non-critical handlers, with the failure logged, keeps the core operation reliable even when a peripheral feature breaks.",
+									"_key": "k28"
+								}
+							],
+							"_key": "b28"
+						}
+					]
+				},
+				"taxonomies": {
+					"category": [
+						"platform"
+					],
+					"tag": [
+						"architecture",
+						"backend"
+					]
+				}
+			}
+		],
+		"adrs": [
+			{
+				"id": "adr-1",
+				"slug": "postgresql-vs-mongodb",
+				"status": "published",
+				"data": {
+					"title": "PostgreSQL vs MongoDB for EngiVault's Content Store",
+					"decision_status": "accepted",
+					"author": "Priya Nair",
+					"date": "2025-08-11T00:00:00Z",
+					"problem": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "EngiVault needs a single database to store structured content (articles, ADRs, incidents) with typed fields, full-text search, and relational lookups — for example an ADR referencing another ADR it supersedes, or an incident referencing a related ADR. We had to choose between a relational database (PostgreSQL) and a document database (MongoDB) as the underlying store.",
+									"_key": "k29"
+								}
+							],
+							"_key": "b29"
+						}
+					],
+					"decision": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Use PostgreSQL (or SQLite/D1, via EmDash's portable-SQL abstraction) as the sole datastore. Each content type gets a real table with typed columns generated from its field definitions, rather than a single generic documents collection.",
+									"_key": "k30"
+								}
+							],
+							"_key": "b30"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "This follows EmDash's existing architecture directly: content types are schema, not code, and the schema registry already generates a real SQL table per collection. Introducing a second, document-oriented datastore alongside it would mean maintaining two storage engines, two backup strategies, and two query languages for what is fundamentally the same kind of data.",
+									"_key": "k31"
+								}
+							],
+							"_key": "b31"
+						}
+					],
+					"alternatives": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "MongoDB was considered for its schema flexibility — a new field on a content type doesn't require an ALTER TABLE. In practice, EmDash's schema registry already handles that migration automatically and safely, so the flexibility MongoDB offers isn't a capability we're actually missing.",
+									"_key": "k32"
+								}
+							],
+							"_key": "b32"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "A dedicated search engine (Elasticsearch) alongside either database was also considered and rejected for this decision — that's a separate, orthogonal question, addressed instead by using SQLite FTS5 rather than standing up a second service.",
+									"_key": "k33"
+								}
+							],
+							"_key": "b33"
+						}
+					],
+					"consequences": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Relational integrity (foreign keys, unique constraints, transactional multi-table writes) is available for free, which matters for features like revision history and taxonomy assignment that touch multiple tables in one logical operation.",
+									"_key": "k34"
+								}
+							],
+							"_key": "b34"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Full-text search, reporting, and ad-hoc queries can all be expressed in ordinary SQL against a normal relational schema, rather than requiring a separate aggregation pipeline language.",
+									"_key": "k35"
+								}
+							],
+							"_key": "b35"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The cost is that a highly dynamic, deeply nested document shape is more awkward to store than in MongoDB — EmDash addresses the cases that actually come up (rich text, repeaters, JSON fields) with a JSON column type on top of the relational base, rather than making the whole store schemaless.",
+									"_key": "k36"
+								}
+							],
+							"_key": "b36"
+						}
+					]
+				},
+				"taxonomies": {
+					"tag": [
+						"database"
+					]
+				}
+			},
+			{
+				"id": "adr-2",
+				"slug": "rest-vs-graphql",
+				"status": "published",
+				"data": {
+					"title": "REST vs GraphQL for EngiVault's Content API",
+					"decision_status": "accepted",
+					"author": "Jordan Lee",
+					"date": "2025-09-02T00:00:00Z",
+					"problem": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "EngiVault's admin UI, public Astro pages, and the AI knowledge assistant all need to read and write content through an API. We needed to decide between a REST API with fixed response shapes per resource, or a GraphQL API with a single endpoint and client-specified queries.",
+									"_key": "k37"
+								}
+							],
+							"_key": "b37"
+						}
+					],
+					"decision": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Use REST, following EmDash's existing convention of one route file per resource (/content/{collection}, /content/{collection}/{id}), each returning a fixed, documented response shape.",
+									"_key": "k38"
+								}
+							],
+							"_key": "b38"
+						}
+					],
+					"alternatives": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "GraphQL's main advantage — letting a client request exactly the fields it needs in one round trip — is most valuable when many different, unpredictable client shapes hit the same backend. EngiVault has a small, known set of consumers: the Astro site rendering server-side, and the admin SPA, both served well by a handful of well-defined REST endpoints.",
+									"_key": "k39"
+								}
+							],
+							"_key": "b39"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "GraphQL also introduces a second query language, a schema layer separate from the REST route validation already in place, and a class of performance problems (N+1 field resolution) that need their own tooling to detect — cost that isn't justified by the actual client diversity here.",
+									"_key": "k40"
+								}
+							],
+							"_key": "b40"
+						}
+					],
+					"consequences": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Every response shape is explicit and versioned by route, which keeps the contract easy to reason about and easy to validate with a fixed schema per endpoint.",
+									"_key": "k41"
+								}
+							],
+							"_key": "b41"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "A client that wants a different combination of fields than a route returns needs either a new route or an extra round trip — an acceptable cost given how few distinct clients exist.",
+									"_key": "k42"
+								}
+							],
+							"_key": "b42"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "REST plays well with HTTP-level caching and CDN edge caching for anonymous GET requests in a way that a single POST-based GraphQL endpoint does not, which matters for the logged-out hot path.",
+									"_key": "k43"
+								}
+							],
+							"_key": "b43"
+						}
+					]
+				},
+				"taxonomies": {
+					"tag": [
+						"api",
+						"graphql"
+					]
+				}
+			},
+			{
+				"id": "adr-3",
+				"slug": "astro-vs-spa-architecture",
+				"status": "published",
+				"data": {
+					"title": "Astro (Server-Rendered Islands) vs a Single-Page App for the Public Site",
+					"decision_status": "accepted",
+					"author": "Priya Nair",
+					"date": "2025-09-20T00:00:00Z",
+					"problem": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The public-facing EngiVault site (articles, ADRs, incidents, search, the AI assistant) needed a frontend architecture. The two live options were a traditional single-page application — a React app that fetches all its content client-side after a near-empty HTML shell — or Astro's server-rendered-pages-with-islands model.",
+									"_key": "k44"
+								}
+							],
+							"_key": "b44"
+						}
+					],
+					"decision": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Build the public site in Astro, server-rendering every page from the database on request, and use React only for the small number of components that need genuine client-side interactivity: a live search box and the AI assistant chat widget.",
+									"_key": "k45"
+								}
+							],
+							"_key": "b45"
+						}
+					],
+					"alternatives": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "A full SPA was considered, since the team already has React expertise from the EmDash admin panel. It was rejected for the public site specifically because most of EngiVault's pages — an article, an ADR, an incident report — are fundamentally read-only documents. Shipping a full client-side router and hydrating the entire page just to display static text pays a JavaScript-parsing and network cost for interactivity the page doesn't need.",
+									"_key": "k46"
+								}
+							],
+							"_key": "b46"
+						}
+					],
+					"consequences": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Search engines and social-media unfurl bots get fully rendered HTML on the first response, with no client-side rendering step required for correct SEO metadata — directly relevant given SEO is a stated requirement for EngiVault's pages.",
+									"_key": "k47"
+								}
+							],
+							"_key": "b47"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Time-to-first-content is bounded by server render time plus network latency, not by downloading and executing a JavaScript bundle before anything appears.",
+									"_key": "k48"
+								}
+							],
+							"_key": "b48"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The tradeoff is that page navigation is a full request-response cycle rather than a client-side route change; for a content site where each page is a distinct, shareable, indexable URL, that's the correct default rather than a limitation.",
+									"_key": "k49"
+								}
+							],
+							"_key": "b49"
+						}
+					]
+				},
+				"taxonomies": {
+					"tag": [
+						"frontend",
+						"architecture"
+					]
+				}
+			},
+			{
+				"id": "adr-4",
+				"slug": "choosing-a-background-job-strategy",
+				"status": "published",
+				"data": {
+					"title": "Choosing a Background Job Strategy",
+					"decision_status": "proposed",
+					"author": "Jordan Lee",
+					"date": "2026-01-05T00:00:00Z",
+					"problem": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Two features need work to happen outside the request/response cycle: scheduled publishing — an article or incident report going live automatically at a future timestamp — and, eventually, any bulk reindexing needed for the AI assistant's retrieval step. We needed a background job strategy that doesn't require standing up a separate queue service.",
+									"_key": "k50"
+								}
+							],
+							"_key": "b50"
+						}
+					],
+					"decision": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Use EmDash's existing scheduler and deferred-task mechanism rather than introducing a message queue. Scheduled publishing already has first-class support (a scheduled_at column, a scheduler health check, and a cron trigger that flips due items to published); a similar cron-triggered sweep is the right shape for any future reindexing work.",
+									"_key": "k51"
+								}
+							],
+							"_key": "b51"
+						}
+					],
+					"alternatives": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "A dedicated message queue (a Kafka-style log, or a Redis-backed job queue) was considered for its stronger delivery guarantees and decoupling. It was rejected for this project's actual load: EngiVault's write volume is editorial — people, not machines, publishing content — which is orders of magnitude below the throughput a dedicated queue is built to solve, and it would add an operational dependency with its own failure modes for no measurable benefit at this scale.",
+									"_key": "k52"
+								}
+							],
+							"_key": "b52"
+						}
+					],
+					"consequences": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Background work stays within the same deployment (Node process or Worker) as the main application, with no additional infrastructure to provision, monitor, or pay for.",
+									"_key": "k53"
+								}
+							],
+							"_key": "b53"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "This does not scale to high-throughput, high-fanout event processing — if EngiVault's write volume or plugin ecosystem grows to the point where that matters, this decision should be revisited rather than assumed permanent.",
+									"_key": "k54"
+								}
+							],
+							"_key": "b54"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Marked 'proposed' rather than 'accepted' because the reindexing half of this decision is speculative until the AI assistant phase actually needs it; scheduled publishing itself already relies on this mechanism today.",
+									"_key": "k55"
+								}
+							],
+							"_key": "b55"
+						}
+					]
+				},
+				"taxonomies": {
+					"tag": [
+						"backend",
+						"jobs"
+					]
+				}
+			}
+		],
+		"incidents": [
+			{
+				"id": "incident-1",
+				"slug": "api-latency-spike",
+				"status": "published",
+				"data": {
+					"title": "API Latency Spike on Content List Endpoints",
+					"severity": "sev2",
+					"incident_status": "resolved",
+					"date": "2026-01-22T14:15:00Z",
+					"author": "Priya Nair",
+					"summary": "p95 latency on content list endpoints rose from about 80ms to over 2 seconds for roughly 40 minutes during a traffic increase, before recovering after a query pattern fix.",
+					"root_cause": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "A recently added feature computed each list item's tag count by issuing one query per item instead of a single batched query, turning a single list request into N+1 database round-trips. Under normal traffic this added a barely noticeable few milliseconds; under the elevated traffic from a marketing campaign, the connection pool saturated and queries queued behind each other.",
+									"_key": "k56"
+								}
+							],
+							"_key": "b56"
+						}
+					],
+					"resolution": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Rewrote the tag-count lookup to a single batched query using WHERE entry_id IN (...), matching the project's existing convention for avoiding per-row queries. Latency returned to baseline within minutes of deploying the fix, with no further pool saturation under the same traffic level in the following days.",
+									"_key": "k57"
+								}
+							],
+							"_key": "b57"
+						}
+					],
+					"lessons_learned": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The query-count snapshot tooling would have caught this in code review — the change increased the query count on a logged-out route, which is exactly the case the snapshot diff is designed to flag. The regression shipped because the snapshot wasn't regenerated as part of that particular pull request.",
+									"_key": "k58"
+								}
+							],
+							"_key": "b58"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Added a reminder to the pull request checklist to re-run the query-count snapshot whenever a list endpoint's per-item logic changes, rather than relying on CI alone to be noticed.",
+									"_key": "k59"
+								}
+							],
+							"_key": "b59"
+						}
+					]
+				},
+				"taxonomies": {
+					"tag": [
+						"performance",
+						"database"
+					]
+				}
+			},
+			{
+				"id": "incident-2",
+				"slug": "database-connection-exhaustion",
+				"status": "published",
+				"data": {
+					"title": "Database Connection Pool Exhaustion During Backup Job",
+					"severity": "sev1",
+					"incident_status": "resolved",
+					"date": "2025-12-05T03:40:00Z",
+					"author": "Jordan Lee",
+					"summary": "A scheduled full-content backup job held open far more connections than expected, exhausting the shared connection pool and causing every other request — including the admin panel and public site — to fail with connection timeouts for about 12 minutes.",
+					"root_cause": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The backup job paginated through every content table but opened a new connection per collection instead of reusing a single connection (or the shared pool) for the whole job. With dozens of collections on the affected site, the job alone claimed most of the pool's configured maximum, leaving too few connections for concurrent user traffic.",
+									"_key": "k60"
+								}
+							],
+							"_key": "b60"
+						}
+					],
+					"resolution": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Changed the backup job to run through the same shared, pooled database handle as every other request path instead of opening dedicated connections, and added an explicit concurrency cap so a single job can never claim more than a fixed fraction of the pool.",
+									"_key": "k61"
+								}
+							],
+							"_key": "b61"
+						}
+					],
+					"lessons_learned": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Any background job that touches the database needs to be reviewed for connection usage with the same scrutiny as a request handler — a job running on a schedule is easy to overlook in a review focused on user-facing code paths, but it shares the same finite resource.",
+									"_key": "k62"
+								}
+							],
+							"_key": "b62"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Added a pool-utilization metric and an alert threshold below full exhaustion, so a job trending toward this failure mode pages someone before it actually exhausts the pool, rather than only after.",
+									"_key": "k63"
+								}
+							],
+							"_key": "b63"
+						}
+					]
+				},
+				"taxonomies": {
+					"tag": [
+						"database",
+						"reliability"
+					]
+				}
+			},
+			{
+				"id": "incident-3",
+				"slug": "failed-production-deployment",
+				"status": "published",
+				"data": {
+					"title": "Failed Production Deployment After Migration Ordering Issue",
+					"severity": "sev2",
+					"incident_status": "resolved",
+					"date": "2026-02-18T10:05:00Z",
+					"author": "Priya Nair",
+					"summary": "A deployment failed to start after a new migration was added out of the expected order relative to a migration already running in production, leaving the site down for roughly 8 minutes until the previous release was rolled back.",
+					"root_cause": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Two feature branches each added the next-numbered migration independently and were merged in an order where the migration runner encountered a migration that assumed a column added by a later-numbered migration, which hadn't run yet. The runner's static migration list meant the ordering bug was only visible once both changes landed together in the same deploy.",
+									"_key": "k64"
+								}
+							],
+							"_key": "b64"
+						}
+					],
+					"resolution": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Rolled back to the previous known-good release immediately to restore service, then re-numbered the conflicting migration to run after its dependency and redeployed. Total downtime was limited to the rollback window.",
+									"_key": "k65"
+								}
+							],
+							"_key": "b65"
+						}
+					],
+					"lessons_learned": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Migrations that depend on another migration's column existing need that dependency checked at merge time, not just at review time for each individual branch — two individually correct migrations can still conflict once merged together.",
+									"_key": "k66"
+								}
+							],
+							"_key": "b66"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Added a CI check that runs the full migration sequence against a fresh database as part of every pull request touching the migrations directory, so an ordering conflict between two in-flight branches surfaces before merge instead of in production.",
+									"_key": "k67"
+								}
+							],
+							"_key": "b67"
+						}
+					]
+				},
+				"taxonomies": {
+					"tag": [
+						"deployment",
+						"reliability"
+					]
+				}
+			}
+		]
+	}
+}

@@ -1,0 +1,25 @@
+---
+import Badge, { type BadgeTone } from "./Badge.astro";
+
+interface Props {
+	severity: "sev1" | "sev2" | "sev3" | "sev4";
+}
+
+const { severity } = Astro.props;
+
+const TONE: Record<Props["severity"], BadgeTone> = {
+	sev1: "danger",
+	sev2: "warning",
+	sev3: "info",
+	sev4: "neutral",
+};
+
+const LABEL: Record<Props["severity"], string> = {
+	sev1: "SEV1 · Critical",
+	sev2: "SEV2 · High",
+	sev3: "SEV3 · Moderate",
+	sev4: "SEV4 · Low",
+};
+---
+
+<Badge tone={TONE[severity]} mono>{LABEL[severity]}</Badge>

@@ -1,0 +1,32 @@
+{
+	"name": "@emdash-cms/demo-engivault",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"emdash": {
+		"seed": "seed/seed.json"
+	},
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"start": "node ./dist/server/entry.mjs",
+		"typecheck": "astro check",
+		"test": "vitest run",
+		"seed": "emdash seed",
+		"types": "emdash types"
+	},
+	"dependencies": {
+		"@astrojs/node": "catalog:",
+		"@astrojs/react": "catalog:",
+		"astro": "catalog:",
+		"emdash": "workspace:*",
+		"react": "catalog:",
+		"react-dom": "catalog:"
+	},
+	"devDependencies": {
+		"@astrojs/check": "catalog:",
+		"@types/react": "catalog:",
+		"vitest": "catalog:"
+	}
+}

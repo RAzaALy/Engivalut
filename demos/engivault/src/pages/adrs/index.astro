@@ -1,0 +1,106 @@
+---
+import { getEmDashCollection, getTermsForEntries } from "emdash";
+import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import Card from "../../components/Card.astro";
+import StatusBadge from "../../components/badges/StatusBadge.astro";
+import TagList from "../../components/TagList.astro";
+import EmptyState from "../../components/EmptyState.astro";
+import ErrorState from "../../components/ErrorState.astro";
+import { canonicalUrl } from "../../utils/seo";
+
+let loadError: Error | null = null;
+let adrs: Awaited<ReturnType<typeof getEmDashCollection<"adrs">>>["entries"] = [];
+let tagsByEntry = new Map<string, Array<{ slug: string; label: string }>>();
+
+try {
+	const result = await getEmDashCollection("adrs", {
+		orderBy: { published_at: "desc" },
+	});
+	adrs = result.entries;
+	if (Astro.cache?.enabled) Astro.cache.set(result.cacheHint);
+
+	tagsByEntry = await getTermsForEntries(
+		"adrs",
+		adrs.map((a) => a.data.id),
+		"tag",
+	);
+} catch (error) {
+	loadError = error instanceof Error ? error : new Error(String(error));
+	Astro.response.status = 500;
+}
+
+function formatDate(date: string | Date | null | undefined) {
+	if (!date) return null;
+	return new Date(date).toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+	});
+}
+---
+
+<Base
+	title="Architecture Decisions"
+	description="Architecture Decision Records: the context, decision, and consequences behind each technical choice."
+	canonical={canonicalUrl(Astro.url)}
+	robots={loadError ? "noindex, nofollow" : undefined}
+>
+	<div class="container page">
+		<PageHeader
+			eyebrow="Knowledge Base"
+			title="Architecture Decisions"
+			description="The context, decision, and consequences behind every significant technical choice."
+		/>
+
+		{
+			loadError ? (
+				<ErrorState
+					code="500"
+					title="Couldn't load architecture decisions"
+					description="Something went wrong fetching the knowledge base. Please try again shortly."
+				/>
+			) : adrs.length === 0 ? (
+				<EmptyState
+					title="No ADRs recorded yet"
+					description="Architecture decisions will appear here once published."
+				/>
+			) : (
+				<ol class="adr-list">
+					{adrs.map((adr) => (
+						<li>
+							<Card href={`/adrs/${adr.id}`} headingLevel="h2">
+								<StatusBadge slot="eyebrow" status={adr.data.decision_status} />
+								<Fragment slot="title">{adr.data.title}</Fragment>
+								<span slot="meta">
+									{adr.data.author && <span>{adr.data.author}</span>}
+									{formatDate(adr.data.date) && <span>· {formatDate(adr.data.date)}</span>}
+								</span>
+								<TagList slot="footer" tags={tagsByEntry.get(adr.data.id) ?? []} />
+							</Card>
+						</li>
+					))}
+				</ol>
+			)
+		}
+	</div>
+</Base>
+
+<style>
+	.page {
+		padding-block: var(--spacing-12) var(--spacing-24);
+	}
+
+	.adr-list {
+		list-style: none;
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--spacing-6);
+	}
+
+	@media (max-width: 720px) {
+		.adr-list {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
