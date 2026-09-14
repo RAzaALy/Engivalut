@@ -1,0 +1,25 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHeader from "../components/PageHeader.astro";
+import AskAssistant from "../components/AskAssistant";
+---
+
+<Base
+	title="Engineering AI"
+	description="Ask questions about EngiVault's engineering knowledge base — grounded answers with citations to the source articles, ADRs, and incident reports."
+>
+	<div class="container page">
+		<PageHeader
+			eyebrow="Engineering Knowledge Intelligence"
+			title="Engineering AI"
+			description="Ask questions about our engineering knowledge base."
+		/>
+		<AskAssistant client:load />
+	</div>
+</Base>
+
+<style>
+	.page {
+		padding-block: var(--spacing-12) var(--spacing-24);
+	}
+</style>

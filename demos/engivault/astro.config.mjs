@@ -4,6 +4,17 @@ import { defineConfig, fontProviders } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 
+// Dev convenience only: `astro dev` runs this config directly, but the
+// built server (`node ./dist/server/entry.mjs`) does not, so production
+// still needs XAI_API_KEY etc. set as real environment variables on the
+// host — never shipped via .env.
+try {
+	process.loadEnvFile();
+} catch {
+	// No .env file present (e.g. CI) — fine, secrets come from the real
+	// environment instead.
+}
+
 export default defineConfig({
 	output: "server",
 	adapter: node({

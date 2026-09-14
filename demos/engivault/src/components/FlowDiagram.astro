@@ -1,0 +1,70 @@
+---
+/**
+ * Vertical box-and-arrow flow diagram (Browser → Astro → EmDash → Database,
+ * etc). Plain HTML/CSS on the site's own design tokens rather than a raster
+ * image or a diagramming library, so it stays theme-aware (light/dark) and
+ * needs no client JS.
+ */
+interface Props {
+	steps: string[];
+	tone?: "brand" | "neutral";
+}
+
+const { steps, tone = "brand" } = Astro.props;
+---
+
+<div class:list={["flow", `flow-${tone}`]} role="img" aria-label={steps.join(" → ")}>
+	{steps.map((step, i) => (
+		<>
+			<div class="flow-step">{step}</div>
+			{i < steps.length - 1 && (
+				<div class="flow-arrow" aria-hidden="true">
+					↓
+				</div>
+			)}
+		</>
+	))}
+</div>
+
+<style>
+	.flow {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--spacing-1);
+		padding: var(--spacing-8) var(--spacing-4);
+	}
+
+	.flow-step {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 220px;
+		padding: var(--spacing-3) var(--spacing-6);
+		font-family: var(--font-mono);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		text-align: center;
+		border-radius: var(--radius);
+		border: 1px solid var(--color-border);
+		background: var(--color-bg);
+	}
+
+	.flow-brand .flow-step {
+		border-color: color-mix(in srgb, var(--color-brand) 40%, var(--color-border));
+		background: color-mix(in srgb, var(--color-brand) 8%, var(--color-bg));
+	}
+
+	.flow-arrow {
+		color: var(--color-muted);
+		font-size: var(--font-size-lg);
+		line-height: 1;
+	}
+
+	@media (max-width: 480px) {
+		.flow-step {
+			min-width: 0;
+			width: 100%;
+		}
+	}
+</style>

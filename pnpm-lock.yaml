@@ -817,6 +817,9 @@ importers:
       '@astrojs/check':
         specifier: 'catalog:'
         version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.9.5)(typescript@6.0.0-beta)
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
 
   demos/playground:
     dependencies:

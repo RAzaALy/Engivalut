@@ -1,0 +1,235 @@
+---
+import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import StatusBadge from "../../components/badges/StatusBadge.astro";
+
+interface MetaAdr {
+	id: string;
+	title: string;
+	status: "proposed" | "accepted" | "deprecated" | "superseded";
+	context: string;
+	problem: string;
+	decision: string;
+	alternatives: string;
+	consequences: string;
+}
+
+// These document the real decisions made while building EngiVault itself —
+// distinct from the fictional "adrs" collection seeded as demo knowledge-base
+// content (e.g. "PostgreSQL vs MongoDB"). Kept as static content rather than
+// CMS entries so the two are never confused with each other.
+const ADRS: MetaAdr[] = [
+	{
+		id: "ADR-001",
+		title: "Use EmDash as the CMS Foundation",
+		status: "accepted",
+		context:
+			"EngiVault needed a way to manage structured engineering content (articles, ADRs, incident reports) with an admin UI, without building a CMS from scratch inside a time-boxed assignment.",
+		problem:
+			"Building a bespoke content model, admin interface, authentication, and database layer from zero would consume most of the available time on infrastructure rather than the actual product — search, the AI assistant, and the UI.",
+		decision:
+			"Build EngiVault as a consumer site on top of EmDash, the Astro-native CMS already present in this repository. Collections (articles, adrs, incidents) are declared through EmDash's seed format and materialize as real SQL tables via its schema registry — no parallel ORM or hand-rolled content model was introduced.",
+		alternatives:
+			"A from-scratch Node/Express + Prisma content API was considered and rejected — it would mean re-implementing revisions, drafts, taxonomies, an admin UI, and auth that EmDash already provides. A headless CMS SaaS (e.g. Contentful) was also rejected: it introduces an external dependency and a second source of truth outside the repository, and the assignment's own instructions were to extend the existing codebase, not bring in a new one.",
+		consequences:
+			"EngiVault inherits EmDash's admin UI, RBAC, revisions, and FTS5 search for free, and every content query goes through EmDash's own typed API. The cost is coupling to EmDash's conventions — for example, reserved field slugs meant an incident's status field had to be named incident_status rather than status, and a real bug surfaced where EmDash's own default taxonomy bootstrap silently shadowed this project's taxonomy-collection links until reseeded with --on-conflict update.",
+	},
+	{
+		id: "ADR-002",
+		title: "Use Astro as the Presentation Layer",
+		status: "accepted",
+		context:
+			"EmDash is itself an Astro integration, and EngiVault needed a public-facing site (homepage, listings, detail pages, search, AI assistant) with credible SEO for a client-facing demo.",
+		problem:
+			"Content changes after deploy — an editor publishes an article, an incident gets updated — and pages need real metadata (canonical URLs, Open Graph, breadcrumbs) rather than placeholder tags.",
+		decision:
+			'Render every page server-side with Astro ("output: server", the Node adapter), querying EmDash\'s Live Collections API on each request rather than statically generating pages at build time.',
+		alternatives:
+			"Static generation (SSG) was considered and rejected for the same reason EmDash's own starter templates default to server rendering — content is edited through the admin panel after deploy, and SSG would need a full rebuild for every publish or edit. A separate SPA frontend calling EmDash's REST API from the client was also considered and rejected (see ADR-003).",
+		consequences:
+			"Every page reflects the database at request time with no rebuild step, and SEO metadata is generated server-side and present in the initial HTML response. The tradeoff is a per-request database round-trip instead of a free static file serve — acceptable at this content volume, and consistent with the batched-query discipline used throughout (e.g. fetching tags for an entire list in one query instead of one per item).",
+	},
+	{
+		id: "ADR-003",
+		title: "Use React Islands Instead of a React SPA",
+		status: "accepted",
+		context:
+			"Two features genuinely need client-side interactivity: the header's live search dropdown (provided by EmDash's own LiveSearch component) and the Engineering AI Assistant's ask/answer flow.",
+		problem:
+			"A full React SPA would re-implement routing and data-fetching that Astro's server rendering already provides, and would ship a React runtime to every visitor regardless of whether the page they landed on needs any interactivity at all.",
+		decision:
+			'Use Astro components for every page\'s static structure — nav, cards, badges, detail pages, listings — and mount React only where component-local state is actually required: a single AskAssistant island ("client:load") on /ask, plus EmDash\'s own search island in the header. No page in EngiVault is a client-rendered React tree.',
+		alternatives:
+			'A React SPA shell with client-side routing was rejected outright — it runs against the assignment\'s own "keep client JavaScript minimal" and "do not create a generic ChatGPT clone" instructions. Rendering the assistant as a full-page form POST with no island at all was also considered, but rejected because the loading/error/empty states the assignment specifically asked for need client-side state that a full-page reload can\'t express cleanly.',
+		consequences:
+			"Every page except /ask ships zero framework JavaScript. The one island's state (question, loading, answer, error) is fully self-contained in AskAssistant.tsx, with no shared client-side store or router to maintain.",
+	},
+	{
+		id: "ADR-004",
+		title: "Keep the AI API Call Server-Side",
+		status: "accepted",
+		context:
+			"The Engineering AI Assistant calls an external LLM provider (an OpenAI-compatible chat/completions API) using a secret API key.",
+		problem:
+			"If the browser ever held that key or called the LLM provider directly, it would be visible to anyone opening devtools or the network tab — an unacceptable way to handle a secret, and explicitly disallowed by the assignment's own security requirements.",
+		decision:
+			"The React island only ever calls this site's own /api/ask endpoint. That server-only Astro API route reads the key via process.env — never import.meta.env, which Vite would inline into the client bundle — and is the only code that ever talks to the LLM provider.",
+		alternatives:
+			"A client-side SDK call to the LLM provider (common in quick prototypes) was rejected immediately as the exact anti-pattern the assignment calls out. A separate backend service to host this one endpoint was also considered and rejected as unnecessary — Astro API routes already provide a server-only execution context in this project, so a second service would just be more infrastructure for no additional isolation.",
+		consequences:
+			"The API key never leaves the server process. This also gave us one place to add input validation, per-IP rate limiting, and error-message sanitization — the provider's raw error body is logged server-side only and never forwarded to the client.",
+	},
+	{
+		id: "ADR-005",
+		title: "Start with Database/Search Retrieval Instead of a Vector Database",
+		status: "accepted",
+		context:
+			"The AI Assistant needs to ground its answers in EngiVault's actual content rather than the model's general knowledge, which means retrieving relevant documents before calling the LLM.",
+		problem:
+			"Retrieval-augmented generation is often built on a vector database and an embedding pipeline, but the knowledge base here is twelve documents, and the assignment explicitly says not to introduce a vector database unless one is already configured — which it isn't.",
+		decision:
+			"Retrieval reuses EmDash's existing FTS5-backed search() function, augmented with a small stopword-stripping/OR-join step — found necessary during testing, since natural-language questions were being AND-matched into zero results — and a taxonomy-term fallback for tag-only queries. No embeddings, no vector store, no new search index were introduced.",
+		alternatives:
+			"A vector database with an embedding pipeline was considered and explicitly rejected for this phase — it would add a second data store, an embedding-generation step on every content write, and ongoing embedding-model costs, none justified at twelve documents. Sending the entire knowledge base to the LLM on every question (no retrieval at all) was also rejected: it violates the assignment's explicit instruction not to send the whole database to the LLM, and would scale badly regardless.",
+		consequences:
+			"Retrieval quality is bounded by keyword/BM25 matching rather than semantic similarity — a question phrased very differently from the source text may retrieve nothing, which is why the assistant is instructed to say so rather than guess. See the Future Evolution section of /architecture for the point at which this should be revisited.",
+	},
+];
+
+const breadcrumbs = [
+	{ name: "Home", url: "/" },
+	{ name: "Architecture", url: "/architecture" },
+	{ name: "Decision Records", url: "/architecture/decisions" },
+];
+---
+
+<Base
+	title="Architecture Decision Records"
+	description="The real architectural decisions made while building EngiVault: why EmDash, why Astro, why React islands, why a server-side AI call, and why search instead of a vector database."
+	breadcrumbs={breadcrumbs}
+>
+	<div class="container page">
+		<Breadcrumbs items={breadcrumbs} />
+		<PageHeader
+			eyebrow="Engineering Knowledge Intelligence"
+			title="EngiVault Architecture Decision Records"
+			description="Not knowledge-base demo content — these document the real decisions made while building this assignment, kept consistent with what's actually implemented."
+		/>
+
+		<ol class="adr-list">
+			{ADRS.map((adr) => (
+				<li class="adr" id={adr.id}>
+					<div class="adr-header">
+						<span class="adr-id">{adr.id}</span>
+						<StatusBadge status={adr.status} />
+					</div>
+					<h2 class="adr-title">{adr.title}</h2>
+
+					<div class="adr-section">
+						<h3>Context</h3>
+						<p>{adr.context}</p>
+					</div>
+					<div class="adr-section">
+						<h3>Problem</h3>
+						<p>{adr.problem}</p>
+					</div>
+					<div class="adr-section adr-decision">
+						<h3>Decision</h3>
+						<p>{adr.decision}</p>
+					</div>
+					<div class="adr-section">
+						<h3>Alternatives Considered</h3>
+						<p>{adr.alternatives}</p>
+					</div>
+					<div class="adr-section">
+						<h3>Consequences</h3>
+						<p>{adr.consequences}</p>
+					</div>
+				</li>
+			))}
+		</ol>
+	</div>
+</Base>
+
+<style>
+	.page {
+		padding-block: var(--spacing-12) var(--spacing-24);
+	}
+
+	.adr-list {
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-10);
+	}
+
+	.adr {
+		max-width: var(--content-width);
+		padding: var(--spacing-8);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--color-bg);
+		scroll-margin-top: calc(var(--nav-height) + var(--spacing-4));
+	}
+
+	.adr-header {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-3);
+		margin-bottom: var(--spacing-3);
+	}
+
+	.adr-id {
+		font-family: var(--font-mono);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		color: var(--color-brand);
+	}
+
+	.adr-title {
+		font-size: var(--font-size-2xl);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.adr-section {
+		margin-bottom: var(--spacing-5);
+	}
+
+	.adr-section:last-child {
+		margin-bottom: 0;
+	}
+
+	.adr-section h3 {
+		font-family: var(--font-mono);
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wider);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-2);
+	}
+
+	.adr-section p {
+		font-size: var(--font-size-base);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+	}
+
+	.adr-decision {
+		padding: var(--spacing-4) var(--spacing-5);
+		border-radius: var(--radius);
+		background: color-mix(in srgb, var(--color-brand) 6%, var(--color-bg-subtle));
+		border: 1px solid color-mix(in srgb, var(--color-brand) 20%, transparent);
+	}
+
+	.adr-decision p {
+		color: var(--color-text);
+	}
+
+	@media (max-width: 640px) {
+		.adr {
+			padding: var(--spacing-5);
+		}
+	}
+</style>
