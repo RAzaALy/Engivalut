@@ -8,15 +8,20 @@
 interface Props {
 	href: string;
 	class?: string;
+	/** Heading level for the card title — h3 by default (card grids under a
+	 * section h2), pass "h2" for grids that sit directly under the page's
+	 * own h1 with no intervening section heading. */
+	headingLevel?: "h2" | "h3";
 }
 
-const { href, class: className } = Astro.props;
+const { href, class: className, headingLevel = "h3" } = Astro.props;
+const TitleTag = headingLevel;
 ---
 
 <article class:list={["card", className]}>
 	<a href={href} class="card-link">
 		<div class="card-eyebrow"><slot name="eyebrow" /></div>
-		<h3 class="card-title"><slot name="title" /></h3>
+		<TitleTag class="card-title"><slot name="title" /></TitleTag>
 		<div class="card-meta"><slot name="meta" /></div>
 		<div class="card-excerpt"><slot /></div>
 	</a>

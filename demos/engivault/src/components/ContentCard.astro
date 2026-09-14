@@ -18,10 +18,15 @@ interface Props {
 	date?: string | Date | null;
 	author?: string | null;
 	tags?: Array<{ slug: string; label: string }>;
+	/** Heading level for the card title — h3 by default (card grids under a
+	 * section h2), pass "h2" for grids that sit directly under the page's
+	 * own h1 with no intervening section heading. */
+	headingLevel?: "h2" | "h3";
 }
 
-const { type, href, title, summary, date, author, tags = [] } = Astro.props;
+const { type, href, title, summary, date, author, tags = [], headingLevel = "h3" } = Astro.props;
 const displayDate = formatDate(date);
+const TitleTag = headingLevel;
 ---
 
 <article class="card">
@@ -30,7 +35,7 @@ const displayDate = formatDate(date);
 			<Badge tone="neutral" mono>{TYPE_LABEL[type]}</Badge>
 			<slot name="badge" />
 		</div>
-		<h3 class="card-title">{title}</h3>
+		<TitleTag class="card-title">{title}</TitleTag>
 		<div class="card-meta">
 			{author && <span>{author}</span>}
 			{author && displayDate && <span class="meta-dot" />}

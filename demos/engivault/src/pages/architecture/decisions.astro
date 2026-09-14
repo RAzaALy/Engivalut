@@ -3,6 +3,7 @@ import Base from "../../layouts/Base.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import StatusBadge from "../../components/badges/StatusBadge.astro";
+import { canonicalUrl } from "../../utils/seo";
 
 interface MetaAdr {
 	id: string;
@@ -108,6 +109,7 @@ const breadcrumbs = [
 	title="Architecture Decision Records"
 	description="The real architectural decisions made while building EngiVault: why EmDash, why Astro, why React islands, why a server-side AI call, and why search instead of a vector database."
 	breadcrumbs={breadcrumbs}
+	canonical={canonicalUrl(Astro.url)}
 >
 	<div class="container page">
 		<Breadcrumbs items={breadcrumbs} />

@@ -211,7 +211,7 @@ export default function AskAssistant() {
 											<span className="ask-source-description">{source.description}</span>
 										)}
 										<a className="ask-source-link" href={source.url}>
-											View document →
+											View document<span className="sr-only"> — {source.title}</span> →
 										</a>
 									</li>
 								))}

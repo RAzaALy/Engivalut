@@ -68,7 +68,8 @@
 			"supports": [
 				"drafts",
 				"revisions",
-				"search"
+				"search",
+				"seo"
 			],
 			"urlPattern": "/adrs/{slug}",
 			"dateField": "date",
@@ -144,7 +145,8 @@
 			"supports": [
 				"drafts",
 				"revisions",
-				"search"
+				"search",
+				"seo"
 			],
 			"urlPattern": "/incidents/{slug}",
 			"dateField": "date",

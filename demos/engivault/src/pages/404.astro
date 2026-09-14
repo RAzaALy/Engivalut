@@ -2,9 +2,15 @@
 import Base from "../layouts/Base.astro";
 import Button from "../components/Button.astro";
 import ErrorState from "../components/ErrorState.astro";
+
+// Served both for truly unmatched routes (where Astro applies 404 itself)
+// and via Astro.rewrite("/404") from invalid-slug detail pages, which
+// otherwise wouldn't get a 404 status — a real status code, not just
+// wording, is what keeps a crawler from indexing this as if it were content.
+Astro.response.status = 404;
 ---
 
-<Base title="Page not found">
+<Base title="Page not found" robots="noindex, follow">
 	<div class="container page">
 		<ErrorState
 			code="404"

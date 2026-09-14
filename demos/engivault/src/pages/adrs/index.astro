@@ -7,6 +7,7 @@ import StatusBadge from "../../components/badges/StatusBadge.astro";
 import TagList from "../../components/TagList.astro";
 import EmptyState from "../../components/EmptyState.astro";
 import ErrorState from "../../components/ErrorState.astro";
+import { canonicalUrl } from "../../utils/seo";
 
 let loadError: Error | null = null;
 let adrs: Awaited<ReturnType<typeof getEmDashCollection<"adrs">>>["entries"] = [];
@@ -26,6 +27,7 @@ try {
 	);
 } catch (error) {
 	loadError = error instanceof Error ? error : new Error(String(error));
+	Astro.response.status = 500;
 }
 
 function formatDate(date: string | Date | null | undefined) {
@@ -41,6 +43,8 @@ function formatDate(date: string | Date | null | undefined) {
 <Base
 	title="Architecture Decisions"
 	description="Architecture Decision Records: the context, decision, and consequences behind each technical choice."
+	canonical={canonicalUrl(Astro.url)}
+	robots={loadError ? "noindex, nofollow" : undefined}
 >
 	<div class="container page">
 		<PageHeader
@@ -65,7 +69,7 @@ function formatDate(date: string | Date | null | undefined) {
 				<ol class="adr-list">
 					{adrs.map((adr) => (
 						<li>
-							<Card href={`/adrs/${adr.id}`}>
+							<Card href={`/adrs/${adr.id}`} headingLevel="h2">
 								<StatusBadge slot="eyebrow" status={adr.data.decision_status} />
 								<Fragment slot="title">{adr.data.title}</Fragment>
 								<span slot="meta">

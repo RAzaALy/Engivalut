@@ -18,7 +18,7 @@ import { mergeCacheHints } from "../../utils/cache";
 import ErrorState from "../../components/ErrorState.astro";
 
 const slug = decodeSlug(Astro.params.slug);
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 type IncidentEntry = NonNullable<Awaited<ReturnType<typeof getEmDashEntry<"incidents">>>["entry"]>;
 
@@ -33,7 +33,7 @@ let breadcrumbs: Array<{ name: string; url: string }> = [];
 
 try {
 	const { entry, cacheHint } = await getEmDashEntry("incidents", slug);
-	if (!entry) return Astro.redirect("/404");
+	if (!entry) return Astro.rewrite("/404");
 	incident = entry;
 
 	const { siteTitle } = resolveSiteIdentity(await getSiteSettings());
@@ -73,6 +73,7 @@ try {
 	];
 } catch (error) {
 	loadError = error instanceof Error ? error : new Error(String(error));
+	Astro.response.status = 500;
 }
 ---
 
@@ -86,6 +87,7 @@ try {
 	author={loadError || !incident ? undefined : incident.data.author}
 	breadcrumbs={breadcrumbs.length > 0 ? breadcrumbs : undefined}
 	content={loadError || !incident ? undefined : { collection: "incidents", id: incident.data.id, slug }}
+	robots={loadError ? "noindex, nofollow" : undefined}
 >
 	{
 		loadError || !incident ? (

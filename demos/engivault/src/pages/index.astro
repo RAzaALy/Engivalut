@@ -12,6 +12,7 @@ import ErrorState from "../components/ErrorState.astro";
 import { resolveSiteIdentity } from "../utils/site-identity";
 import { formatDate, type KnowledgeType } from "../utils/knowledge";
 import { mergeCacheHints } from "../utils/cache";
+import { canonicalUrl } from "../utils/seo";
 
 const { siteTitle } = resolveSiteIdentity(await getSiteSettings());
 
@@ -52,6 +53,7 @@ try {
 	}
 } catch (error) {
 	loadError = error instanceof Error ? error : new Error(String(error));
+	Astro.response.status = 500;
 }
 
 const recentKnowledge: RecentItem[] = [
@@ -102,6 +104,8 @@ const featuredArticles = [
 <Base
 	title={`${siteTitle} — Engineering Knowledge, One Search Away`}
 	description={HERO_SUBTITLE}
+	canonical={canonicalUrl(Astro.url)}
+	robots={loadError ? "noindex, nofollow" : undefined}
 >
 	<section class="hero">
 		<div class="container hero-inner">
@@ -157,7 +161,7 @@ const featuredArticles = [
 				<section class="container section" aria-labelledby="recent-knowledge-heading">
 					<div class="section-header">
 						<h2 id="recent-knowledge-heading" class="section-title">Recent Knowledge</h2>
-						<a href="/knowledge" class="section-link">View all →</a>
+						<a href="/knowledge" class="section-link">View all <span class="sr-only">knowledge</span> →</a>
 					</div>
 					{recentKnowledge.length === 0 ? (
 						<p class="section-empty">Nothing published yet.</p>
@@ -180,7 +184,7 @@ const featuredArticles = [
 				<section class="container section" aria-labelledby="adrs-heading">
 					<div class="section-header">
 						<h2 id="adrs-heading" class="section-title">Featured Architecture Decisions</h2>
-						<a href="/adrs" class="section-link">View all →</a>
+						<a href="/adrs" class="section-link">View all <span class="sr-only">architecture decisions</span> →</a>
 					</div>
 					{featuredAdrs.length === 0 ? (
 						<p class="section-empty">No architecture decisions recorded yet.</p>
@@ -203,7 +207,7 @@ const featuredArticles = [
 				<section class="container section" aria-labelledby="incidents-heading">
 					<div class="section-header">
 						<h2 id="incidents-heading" class="section-title">Recent Incidents</h2>
-						<a href="/incidents" class="section-link">View all →</a>
+						<a href="/incidents" class="section-link">View all <span class="sr-only">incidents</span> →</a>
 					</div>
 					{recentIncidents.length === 0 ? (
 						<p class="section-empty">No incidents recorded yet.</p>
@@ -226,7 +230,7 @@ const featuredArticles = [
 				<section class="container section" aria-labelledby="featured-articles-heading">
 					<div class="section-header">
 						<h2 id="featured-articles-heading" class="section-title">Featured Articles</h2>
-						<a href="/articles" class="section-link">View all →</a>
+						<a href="/articles" class="section-link">View all <span class="sr-only">articles</span> →</a>
 					</div>
 					{featuredArticles.length === 0 ? (
 						<p class="section-empty">No articles published yet.</p>

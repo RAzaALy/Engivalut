@@ -9,6 +9,7 @@ import TagList from "../components/TagList.astro";
 import EmptyState from "../components/EmptyState.astro";
 import ErrorState from "../components/ErrorState.astro";
 import { TYPE_LABEL, TYPE_PATH, COLLECTION_TO_TYPE, type KnowledgeType } from "../utils/knowledge";
+import { canonicalUrl } from "../utils/seo";
 
 const TYPES: KnowledgeType[] = ["article", "adr", "incident"];
 const ALL_COLLECTIONS = ["articles", "adrs", "incidents"];
@@ -112,6 +113,7 @@ if (query) {
 		}
 	} catch (error) {
 		loadError = error instanceof Error ? error : new Error(String(error));
+		Astro.response.status = 500;
 	}
 }
 
@@ -126,6 +128,8 @@ function typeFilterUrl(type: KnowledgeType | null): string {
 <Base
 	title={query ? `Search: ${query}` : "Search"}
 	description="Search across EngiVault's articles, architecture decisions, and incident reports."
+	canonical={canonicalUrl(Astro.url)}
+	robots={loadError ? "noindex, nofollow" : "noindex, follow"}
 >
 	<div class="container page">
 		<PageHeader

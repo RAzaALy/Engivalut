@@ -7,6 +7,7 @@ import Badge from "../../components/badges/Badge.astro";
 import TagList from "../../components/TagList.astro";
 import EmptyState from "../../components/EmptyState.astro";
 import ErrorState from "../../components/ErrorState.astro";
+import { canonicalUrl } from "../../utils/seo";
 
 let loadError: Error | null = null;
 let articles: Awaited<ReturnType<typeof getEmDashCollection<"articles">>>["entries"] = [];
@@ -26,10 +27,16 @@ try {
 	);
 } catch (error) {
 	loadError = error instanceof Error ? error : new Error(String(error));
+	Astro.response.status = 500;
 }
 ---
 
-<Base title="Articles" description="Engineering articles, guides, and deep dives.">
+<Base
+	title="Articles"
+	description="Engineering articles, guides, and deep dives."
+	canonical={canonicalUrl(Astro.url)}
+	robots={loadError ? "noindex, nofollow" : undefined}
+>
 	<div class="container page">
 		<PageHeader
 			eyebrow="Knowledge Base"
@@ -52,7 +59,7 @@ try {
 			) : (
 				<div class="card-grid">
 					{articles.map((article) => (
-						<Card href={`/articles/${article.id}`}>
+						<Card href={`/articles/${article.id}`} headingLevel="h2">
 							{article.data.featured && (
 								<Badge slot="eyebrow" tone="brand" mono>
 									Featured

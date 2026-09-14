@@ -10,6 +10,7 @@ import ErrorState from "../components/ErrorState.astro";
 import Button from "../components/Button.astro";
 import { TYPE_LABEL, type KnowledgeType } from "../utils/knowledge";
 import { mergeCacheHints } from "../utils/cache";
+import { canonicalUrl } from "../utils/seo";
 
 const PAGE_SIZE = 9;
 const TYPES: KnowledgeType[] = ["article", "adr", "incident"];
@@ -93,6 +94,7 @@ try {
 	].sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0));
 } catch (error) {
 	loadError = error instanceof Error ? error : new Error(String(error));
+	Astro.response.status = 500;
 }
 
 // Type filter narrows first; the tag list offered is scoped to what's
@@ -121,11 +123,24 @@ function pageUrl(params: { type?: string | null; tag?: string | null; page?: num
 	url.search = search.toString();
 	return url.pathname + (url.search ? url.search : "");
 }
+
+// Faceted navigation: `type` narrows to one of three finite, worthwhile
+// pages to index. `tag` and `page` are open-ended combinations that mostly
+// duplicate a subset of the untagged/first-page content, so they
+// canonicalize back to the (optionally type-filtered) base view and are
+// marked noindex — still crawlable (follow) so link equity still flows to
+// the underlying articles/ADRs/incidents.
+const isThinVariant = !!activeTag || safePage > 1;
+const knowledgeCanonical = canonicalUrl(Astro.url, {
+	search: activeType ? `?type=${activeType}` : null,
+});
 ---
 
 <Base
 	title="Knowledge Base"
 	description="Browse every article, architecture decision, and incident report in EngiVault."
+	canonical={knowledgeCanonical}
+	robots={loadError ? "noindex, nofollow" : isThinVariant ? "noindex, follow" : undefined}
 >
 	<div class="container page">
 		<PageHeader
@@ -212,6 +227,7 @@ function pageUrl(params: { type?: string | null; tag?: string | null; page?: num
 									date={item.date}
 									author={item.author}
 									tags={item.tags}
+									headingLevel="h2"
 								/>
 							))}
 						</div>
