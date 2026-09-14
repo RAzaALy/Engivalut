@@ -14,131 +14,168 @@ import Card from "../../components/Card.astro";
 import Badge from "../../components/badges/Badge.astro";
 import TagList from "../../components/TagList.astro";
 import { resolveSiteIdentity } from "../../utils/site-identity";
+import { mergeCacheHints } from "../../utils/cache";
+import ErrorState from "../../components/ErrorState.astro";
 
 const slug = decodeSlug(Astro.params.slug);
 if (!slug) return Astro.redirect("/404");
 
-const { entry: article, cacheHint } = await getEmDashEntry("articles", slug);
-if (!article) return Astro.redirect("/404");
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+type ArticleEntry = NonNullable<Awaited<ReturnType<typeof getEmDashEntry<"articles">>>["entry"]>;
 
-const { siteTitle } = resolveSiteIdentity(await getSiteSettings());
-const seo = getSeoMeta(article, {
-	siteTitle,
-	siteUrl: Astro.url.origin,
-	path: Astro.url.pathname.replace(/\/$/, ""),
-	defaultDescription: article.data.summary ?? undefined,
-});
+let loadError: Error | null = null;
+let article: ArticleEntry | null = null;
+let seo: ReturnType<typeof getSeoMeta> | null = null;
+let tags: Array<{ slug: string; label: string }> = [];
+let category: { label: string } | null = null;
+let publishDate: string | undefined;
+let relatedArticles: ArticleEntry[] = [];
+let breadcrumbs: Array<{ name: string; url: string }> = [];
 
-const tags = article.data.terms?.tag ?? [];
-const category = article.data.terms?.category?.[0] ?? null;
+try {
+	const { entry, cacheHint } = await getEmDashEntry("articles", slug);
+	if (!entry) return Astro.redirect("/404");
+	article = entry;
 
-const publishDate = article.data.publishedAt?.toLocaleDateString("en-US", {
-	year: "numeric",
-	month: "long",
-	day: "numeric",
-});
+	const { siteTitle } = resolveSiteIdentity(await getSiteSettings());
+	seo = getSeoMeta(article, {
+		siteTitle,
+		siteUrl: Astro.url.origin,
+		path: Astro.url.pathname.replace(/\/$/, ""),
+		defaultDescription: article.data.summary ?? undefined,
+	});
 
-// Related articles: ranked by shared tags (not just "most recent"), so the
-// section reflects actual topical overlap. Ties fall back to recency since
-// both the pool and Array#sort are stable-ordered by published_at desc.
-const { entries: articlePool } = await getEmDashCollection("articles", {
-	orderBy: { published_at: "desc" },
-});
-const candidates = articlePool.filter((a) => a.id !== article.id);
-const candidateTags = await getTermsForEntries(
-	"articles",
-	candidates.map((a) => a.data.id),
-	"tag",
-);
-const tagSlugs = new Set(tags.map((t) => t.slug));
-const relatedArticles = candidates
-	.map((a) => ({
-		entry: a,
-		sharedCount: (candidateTags.get(a.data.id) ?? []).filter((t) => tagSlugs.has(t.slug)).length,
-	}))
-	.sort((a, b) => b.sharedCount - a.sharedCount)
-	.slice(0, 3)
-	.map((x) => x.entry);
+	tags = article.data.terms?.tag ?? [];
+	category = article.data.terms?.category?.[0] ?? null;
 
-const breadcrumbs = [
-	{ name: "Home", url: "/" },
-	{ name: "Articles", url: "/articles" },
-	{ name: article.data.title, url: `/articles/${slug}` },
-];
+	publishDate = article.data.publishedAt?.toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	});
+
+	// Related articles: ranked by shared tags (not just "most recent"), so the
+	// section reflects actual topical overlap. Ties fall back to recency since
+	// both the pool and Array#sort are stable-ordered by published_at desc.
+	const { entries: articlePool, cacheHint: poolCacheHint } = await getEmDashCollection("articles", {
+		orderBy: { published_at: "desc" },
+		limit: 25,
+	});
+	if (Astro.cache?.enabled) Astro.cache.set(mergeCacheHints([cacheHint, poolCacheHint]));
+	const candidates = articlePool.filter((a) => a.id !== article!.id);
+	const candidateTags = await getTermsForEntries(
+		"articles",
+		candidates.map((a) => a.data.id),
+		"tag",
+	);
+	const tagSlugs = new Set(tags.map((t) => t.slug));
+	relatedArticles = candidates
+		.map((a) => ({
+			entry: a,
+			sharedCount: (candidateTags.get(a.data.id) ?? []).filter((t) => tagSlugs.has(t.slug)).length,
+		}))
+		.sort((a, b) => b.sharedCount - a.sharedCount)
+		.slice(0, 3)
+		.map((x) => x.entry);
+
+	breadcrumbs = [
+		{ name: "Home", url: "/" },
+		{ name: "Articles", url: "/articles" },
+		{ name: article.data.title, url: `/articles/${slug}` },
+	];
+} catch (error) {
+	loadError = error instanceof Error ? error : new Error(String(error));
+}
 ---
 
 <Base
-	title={seo.title}
-	description={seo.description}
-	canonical={seo.canonical}
-	type="article"
-	publishedTime={article.data.publishedAt?.toISOString() ?? null}
-	modifiedTime={article.data.updatedAt.toISOString()}
-	author={article.data.author}
-	breadcrumbs={breadcrumbs}
-	content={{ collection: "articles", id: article.data.id, slug }}
+	title={loadError || !article || !seo ? "Article" : seo.title}
+	description={loadError || !seo ? undefined : seo.description}
+	canonical={loadError || !seo ? undefined : seo.canonical}
+	type={loadError || !article ? undefined : "article"}
+	publishedTime={loadError || !article ? null : article.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={loadError || !article ? undefined : article.data.updatedAt.toISOString()}
+	author={loadError || !article ? undefined : article.data.author}
+	breadcrumbs={breadcrumbs.length > 0 ? breadcrumbs : undefined}
+	content={loadError || !article ? undefined : { collection: "articles", id: article.data.id, slug }}
 >
-	<article class="doc">
-		<div class="container">
-			<Breadcrumbs items={breadcrumbs} />
-			<header class="doc-header">
-				<div class="doc-eyebrow">
-					{category && <Badge tone="brand" mono>{category.label}</Badge>}
-					{article.data.featured && <Badge tone="neutral" mono>Featured</Badge>}
-				</div>
-				<h1 class="doc-title" {...article.edit.title}>
-					{article.data.title}
-				</h1>
-				<div class="doc-meta">
-					{article.data.author && <span>{article.data.author}</span>}
-					{publishDate && (
-						<>
-							<span class="meta-dot" />
-							<time>{publishDate}</time>
-						</>
-					)}
-				</div>
-				{article.data.summary && (
-					<p class="doc-summary" {...article.edit.summary}>
-						{article.data.summary}
-					</p>
-				)}
-			</header>
-
-			<div class="doc-content" {...article.edit.content}>
-				<PortableText value={article.data.content} />
-			</div>
-
-			{tags.length > 0 && (
-				<div class="doc-tags">
-					<TagList tags={tags} />
-				</div>
-			)}
-		</div>
-	</article>
-
 	{
-		relatedArticles.length > 0 && (
-			<section class="more" aria-labelledby="related-heading">
-				<div class="container">
-					<h2 id="related-heading" class="more-title">Related Articles</h2>
-					<div class="card-grid">
-						{relatedArticles.map((a) => (
-							<Card href={`/articles/${a.id}`}>
-								<Fragment slot="title">{a.data.title}</Fragment>
-								<span slot="meta">{a.data.author}</span>
-								{a.data.summary}
-							</Card>
-						))}
+		loadError || !article ? (
+			<div class="container page">
+				<ErrorState
+					code="500"
+					title="Couldn't load this article"
+					description="Something went wrong fetching this content. Please try again shortly."
+				/>
+			</div>
+		) : (
+			<>
+				<article class="doc">
+					<div class="container">
+						<Breadcrumbs items={breadcrumbs} />
+						<header class="doc-header">
+							<div class="doc-eyebrow">
+								{category && <Badge tone="brand" mono>{category.label}</Badge>}
+								{article.data.featured && <Badge tone="neutral" mono>Featured</Badge>}
+							</div>
+							<h1 class="doc-title" {...article.edit.title}>
+								{article.data.title}
+							</h1>
+							<div class="doc-meta">
+								{article.data.author && <span>{article.data.author}</span>}
+								{publishDate && (
+									<>
+										<span class="meta-dot" />
+										<time>{publishDate}</time>
+									</>
+								)}
+							</div>
+							{article.data.summary && (
+								<p class="doc-summary" {...article.edit.summary}>
+									{article.data.summary}
+								</p>
+							)}
+						</header>
+
+						<div class="doc-content" {...article.edit.content}>
+							<PortableText value={article.data.content} />
+						</div>
+
+						{tags.length > 0 && (
+							<div class="doc-tags">
+								<TagList tags={tags} />
+							</div>
+						)}
 					</div>
-				</div>
-			</section>
+				</article>
+
+				{
+					relatedArticles.length > 0 && (
+						<section class="more" aria-labelledby="related-heading">
+							<div class="container">
+								<h2 id="related-heading" class="more-title">Related Articles</h2>
+								<div class="card-grid">
+									{relatedArticles.map((a) => (
+										<Card href={`/articles/${a.id}`}>
+											<Fragment slot="title">{a.data.title}</Fragment>
+											<span slot="meta">{a.data.author}</span>
+											{a.data.summary}
+										</Card>
+									))}
+								</div>
+							</div>
+						</section>
+					)
+				}
+			</>
 		)
 	}
 </Base>
 
 <style>
+	.page {
+		padding-block: var(--spacing-12) var(--spacing-24);
+	}
+
 	.doc {
 		padding-block: var(--spacing-12) var(--spacing-16);
 	}

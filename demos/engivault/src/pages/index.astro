@@ -11,6 +11,7 @@ import IncidentStatusBadge from "../components/badges/IncidentStatusBadge.astro"
 import ErrorState from "../components/ErrorState.astro";
 import { resolveSiteIdentity } from "../utils/site-identity";
 import { formatDate, type KnowledgeType } from "../utils/knowledge";
+import { mergeCacheHints } from "../utils/cache";
 
 const { siteTitle } = resolveSiteIdentity(await getSiteSettings());
 
@@ -36,11 +37,19 @@ try {
 	// All three collections are small; fetching unlimited gives an accurate
 	// stat count and lets "Recent Knowledge" merge-sort correctly across
 	// types without a second, differently-limited query per section.
-	[{ entries: allArticles }, { entries: allAdrs }, { entries: allIncidents }] = await Promise.all([
+	const [articlesResult, adrsResult, incidentsResult] = await Promise.all([
 		getEmDashCollection("articles", { orderBy: { published_at: "desc" } }),
 		getEmDashCollection("adrs", { orderBy: { published_at: "desc" } }),
 		getEmDashCollection("incidents", { orderBy: { published_at: "desc" } }),
 	]);
+	allArticles = articlesResult.entries;
+	allAdrs = adrsResult.entries;
+	allIncidents = incidentsResult.entries;
+	if (Astro.cache?.enabled) {
+		Astro.cache.set(
+			mergeCacheHints([articlesResult.cacheHint, adrsResult.cacheHint, incidentsResult.cacheHint]),
+		);
+	}
 } catch (error) {
 	loadError = error instanceof Error ? error : new Error(String(error));
 }

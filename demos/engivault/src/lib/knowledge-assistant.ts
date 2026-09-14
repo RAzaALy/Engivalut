@@ -34,7 +34,7 @@ const STOPWORDS = new Set([
 	"about", "into", "over", "under", "between", "there", "here",
 ]);
 
-function buildSearchQuery(question: string): string {
+export function buildSearchQuery(question: string): string {
 	const words = question
 		.toLowerCase()
 		.replace(/[^a-z0-9\s]/g, " ")

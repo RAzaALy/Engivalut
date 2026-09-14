@@ -79,25 +79,26 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
 		return json({ error: "Too many requests. Please wait a moment and try again." }, 429);
 	}
 
+	// Every failure path below shows the same user-facing message. The
+	// specifics (missing config, upstream HTTP error, timeout, malformed
+	// response, unexpected exception) are only ever logged server-side —
+	// never exposed to the client — so a visitor never sees a stack trace,
+	// a provider error body, or a hint about how the assistant is configured.
+	const AI_UNAVAILABLE_MESSAGE = "Engineering AI is temporarily unavailable. Please try again.";
+
 	try {
 		const result = await askAssistant(question);
 		return json(result, 200);
 	} catch (error) {
 		if (error instanceof AskConfigError) {
 			console.error("[ask] configuration error:", error.message);
-			return json(
-				{ error: "The AI assistant is not configured. Please contact an administrator." },
-				503,
-			);
+			return json({ error: AI_UNAVAILABLE_MESSAGE }, 503);
 		}
 		if (error instanceof AskUpstreamError) {
 			console.error("[ask] upstream error:", error.message);
-			return json(
-				{ error: "The AI provider is temporarily unavailable. Please try again shortly." },
-				502,
-			);
+			return json({ error: AI_UNAVAILABLE_MESSAGE }, 502);
 		}
 		console.error("[ask] unexpected error:", error);
-		return json({ error: "Something went wrong answering that question." }, 500);
+		return json({ error: AI_UNAVAILABLE_MESSAGE }, 500);
 	}
 };

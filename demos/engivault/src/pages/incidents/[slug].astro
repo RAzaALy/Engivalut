@@ -14,126 +14,162 @@ import SeverityBadge from "../../components/badges/SeverityBadge.astro";
 import IncidentStatusBadge from "../../components/badges/IncidentStatusBadge.astro";
 import TagList from "../../components/TagList.astro";
 import { resolveSiteIdentity } from "../../utils/site-identity";
+import { mergeCacheHints } from "../../utils/cache";
+import ErrorState from "../../components/ErrorState.astro";
 
 const slug = decodeSlug(Astro.params.slug);
 if (!slug) return Astro.redirect("/404");
 
-const { entry: incident, cacheHint } = await getEmDashEntry("incidents", slug);
-if (!incident) return Astro.redirect("/404");
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+type IncidentEntry = NonNullable<Awaited<ReturnType<typeof getEmDashEntry<"incidents">>>["entry"]>;
 
-const { siteTitle } = resolveSiteIdentity(await getSiteSettings());
-const seo = getSeoMeta(incident, {
-	siteTitle,
-	siteUrl: Astro.url.origin,
-	path: Astro.url.pathname.replace(/\/$/, ""),
-	defaultDescription: incident.data.summary ?? undefined,
-});
+let loadError: Error | null = null;
+let incident: IncidentEntry | null = null;
+let seo: ReturnType<typeof getSeoMeta> | null = null;
+let tags: Array<{ slug: string; label: string }> = [];
+let incidentDate: string | null = null;
+let sections: Array<{ heading: string; value: unknown }> = [];
+let otherIncidents: IncidentEntry[] = [];
+let breadcrumbs: Array<{ name: string; url: string }> = [];
 
-const tags = incident.data.terms?.tag ?? [];
-const incidentDate = incident.data.date
-	? new Date(incident.data.date).toLocaleDateString("en-US", {
-			year: "numeric",
-			month: "long",
-			day: "numeric",
-		})
-	: null;
+try {
+	const { entry, cacheHint } = await getEmDashEntry("incidents", slug);
+	if (!entry) return Astro.redirect("/404");
+	incident = entry;
 
-const sections = [
-	{ heading: "Root Cause", value: incident.data.root_cause },
-	{ heading: "Resolution", value: incident.data.resolution },
-	{ heading: "Lessons Learned", value: incident.data.lessons_learned },
-].filter((s) => s.value && s.value.length > 0);
+	const { siteTitle } = resolveSiteIdentity(await getSiteSettings());
+	seo = getSeoMeta(incident, {
+		siteTitle,
+		siteUrl: Astro.url.origin,
+		path: Astro.url.pathname.replace(/\/$/, ""),
+		defaultDescription: incident.data.summary ?? undefined,
+	});
 
-const { entries: moreIncidents } = await getEmDashCollection("incidents", {
-	orderBy: { published_at: "desc" },
-	limit: 4,
-});
-const otherIncidents = moreIncidents.filter((i) => i.id !== incident.id).slice(0, 3);
+	tags = incident.data.terms?.tag ?? [];
+	incidentDate = incident.data.date
+		? new Date(incident.data.date).toLocaleDateString("en-US", {
+				year: "numeric",
+				month: "long",
+				day: "numeric",
+			})
+		: null;
 
-const breadcrumbs = [
-	{ name: "Home", url: "/" },
-	{ name: "Incidents", url: "/incidents" },
-	{ name: incident.data.title, url: `/incidents/${slug}` },
-];
+	sections = [
+		{ heading: "Root Cause", value: incident.data.root_cause },
+		{ heading: "Resolution", value: incident.data.resolution },
+		{ heading: "Lessons Learned", value: incident.data.lessons_learned },
+	].filter((s) => s.value && s.value.length > 0);
+
+	const { entries: moreIncidents, cacheHint: moreCacheHint } = await getEmDashCollection("incidents", {
+		orderBy: { published_at: "desc" },
+		limit: 4,
+	});
+	if (Astro.cache?.enabled) Astro.cache.set(mergeCacheHints([cacheHint, moreCacheHint]));
+	otherIncidents = moreIncidents.filter((i) => i.id !== incident!.id).slice(0, 3);
+
+	breadcrumbs = [
+		{ name: "Home", url: "/" },
+		{ name: "Incidents", url: "/incidents" },
+		{ name: incident.data.title, url: `/incidents/${slug}` },
+	];
+} catch (error) {
+	loadError = error instanceof Error ? error : new Error(String(error));
+}
 ---
 
 <Base
-	title={seo.title}
-	description={seo.description}
-	canonical={seo.canonical}
-	type="article"
-	publishedTime={incident.data.publishedAt?.toISOString() ?? null}
-	modifiedTime={incident.data.updatedAt.toISOString()}
-	author={incident.data.author}
-	breadcrumbs={breadcrumbs}
-	content={{ collection: "incidents", id: incident.data.id, slug }}
+	title={loadError || !incident || !seo ? "Incident Report" : seo.title}
+	description={loadError || !seo ? undefined : seo.description}
+	canonical={loadError || !seo ? undefined : seo.canonical}
+	type={loadError || !incident ? undefined : "article"}
+	publishedTime={loadError || !incident ? null : incident.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={loadError || !incident ? undefined : incident.data.updatedAt.toISOString()}
+	author={loadError || !incident ? undefined : incident.data.author}
+	breadcrumbs={breadcrumbs.length > 0 ? breadcrumbs : undefined}
+	content={loadError || !incident ? undefined : { collection: "incidents", id: incident.data.id, slug }}
 >
-	<article class="doc">
-		<div class="container">
-			<Breadcrumbs items={breadcrumbs} />
-			<header class="doc-header">
-				<div class="doc-eyebrow">
-					<SeverityBadge severity={incident.data.severity} />
-					<IncidentStatusBadge status={incident.data.incident_status} />
-				</div>
-				<h1 class="doc-title" {...incident.edit.title}>{incident.data.title}</h1>
-				<div class="doc-meta">
-					{incident.data.author && <span>{incident.data.author}</span>}
-					{incidentDate && (
-						<>
-							<span class="meta-dot" />
-							<time>{incidentDate}</time>
-						</>
-					)}
-				</div>
-				<p class="doc-summary" {...incident.edit.summary}>
-					{incident.data.summary}
-				</p>
-			</header>
-
-			<div class="doc-sections">
-				{sections.map((section) => (
-					<section class="doc-section">
-						<h2 class="doc-section-title">{section.heading}</h2>
-						<div class="doc-content">
-							<PortableText value={section.value} />
-						</div>
-					</section>
-				))}
-			</div>
-
-			{tags.length > 0 && (
-				<div class="doc-tags">
-					<TagList tags={tags} />
-				</div>
-			)}
-		</div>
-	</article>
-
 	{
-		otherIncidents.length > 0 && (
-			<section class="more">
-				<div class="container">
-					<h2 class="more-title">More incidents</h2>
-					<div class="card-grid">
-						{otherIncidents.map((i) => (
-							<Card href={`/incidents/${i.id}`}>
-								<span slot="eyebrow">
-									<SeverityBadge severity={i.data.severity} />
-								</span>
-								<Fragment slot="title">{i.data.title}</Fragment>
-								{i.data.summary}
-							</Card>
-						))}
+		loadError || !incident ? (
+			<div class="container page">
+				<ErrorState
+					code="500"
+					title="Couldn't load this incident report"
+					description="Something went wrong fetching this content. Please try again shortly."
+				/>
+			</div>
+		) : (
+			<>
+				<article class="doc">
+					<div class="container">
+						<Breadcrumbs items={breadcrumbs} />
+						<header class="doc-header">
+							<div class="doc-eyebrow">
+								<SeverityBadge severity={incident.data.severity} />
+								<IncidentStatusBadge status={incident.data.incident_status} />
+							</div>
+							<h1 class="doc-title" {...incident.edit.title}>{incident.data.title}</h1>
+							<div class="doc-meta">
+								{incident.data.author && <span>{incident.data.author}</span>}
+								{incidentDate && (
+									<>
+										<span class="meta-dot" />
+										<time>{incidentDate}</time>
+									</>
+								)}
+							</div>
+							<p class="doc-summary" {...incident.edit.summary}>
+								{incident.data.summary}
+							</p>
+						</header>
+
+						<div class="doc-sections">
+							{sections.map((section) => (
+								<section class="doc-section">
+									<h2 class="doc-section-title">{section.heading}</h2>
+									<div class="doc-content">
+										<PortableText value={section.value} />
+									</div>
+								</section>
+							))}
+						</div>
+
+						{tags.length > 0 && (
+							<div class="doc-tags">
+								<TagList tags={tags} />
+							</div>
+						)}
 					</div>
-				</div>
-			</section>
+				</article>
+
+				{
+					otherIncidents.length > 0 && (
+						<section class="more">
+							<div class="container">
+								<h2 class="more-title">More incidents</h2>
+								<div class="card-grid">
+									{otherIncidents.map((i) => (
+										<Card href={`/incidents/${i.id}`}>
+											<span slot="eyebrow">
+												<SeverityBadge severity={i.data.severity} />
+											</span>
+											<Fragment slot="title">{i.data.title}</Fragment>
+											{i.data.summary}
+										</Card>
+									))}
+								</div>
+							</div>
+						</section>
+					)
+				}
+			</>
 		)
 	}
 </Base>
 
 <style>
+	.page {
+		padding-block: var(--spacing-12) var(--spacing-24);
+	}
+
 	.doc {
 		padding-block: var(--spacing-12) var(--spacing-16);
 	}

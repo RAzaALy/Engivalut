@@ -7,16 +7,27 @@ import SeverityBadge from "../../components/badges/SeverityBadge.astro";
 import IncidentStatusBadge from "../../components/badges/IncidentStatusBadge.astro";
 import TagList from "../../components/TagList.astro";
 import EmptyState from "../../components/EmptyState.astro";
+import ErrorState from "../../components/ErrorState.astro";
 
-const { entries: incidents } = await getEmDashCollection("incidents", {
-	orderBy: { published_at: "desc" },
-});
+let loadError: Error | null = null;
+let incidents: Awaited<ReturnType<typeof getEmDashCollection<"incidents">>>["entries"] = [];
+let tagsByEntry = new Map<string, Array<{ slug: string; label: string }>>();
 
-const tagsByEntry = await getTermsForEntries(
-	"incidents",
-	incidents.map((i) => i.data.id),
-	"tag",
-);
+try {
+	const result = await getEmDashCollection("incidents", {
+		orderBy: { published_at: "desc" },
+	});
+	incidents = result.entries;
+	if (Astro.cache?.enabled) Astro.cache.set(result.cacheHint);
+
+	tagsByEntry = await getTermsForEntries(
+		"incidents",
+		incidents.map((i) => i.data.id),
+		"tag",
+	);
+} catch (error) {
+	loadError = error instanceof Error ? error : new Error(String(error));
+}
 
 function formatDate(date: string | Date | null | undefined) {
 	if (!date) return null;
@@ -40,7 +51,13 @@ function formatDate(date: string | Date | null | undefined) {
 		/>
 
 		{
-			incidents.length === 0 ? (
+			loadError ? (
+				<ErrorState
+					code="500"
+					title="Couldn't load incident reports"
+					description="Something went wrong fetching the knowledge base. Please try again shortly."
+				/>
+			) : incidents.length === 0 ? (
 				<EmptyState
 					title="No incidents recorded"
 					description="Incident reports will appear here once published."

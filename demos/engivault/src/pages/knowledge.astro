@@ -9,6 +9,7 @@ import EmptyState from "../components/EmptyState.astro";
 import ErrorState from "../components/ErrorState.astro";
 import Button from "../components/Button.astro";
 import { TYPE_LABEL, type KnowledgeType } from "../utils/knowledge";
+import { mergeCacheHints } from "../utils/cache";
 
 const PAGE_SIZE = 9;
 const TYPES: KnowledgeType[] = ["article", "adr", "incident"];
@@ -40,6 +41,16 @@ try {
 		getEmDashCollection("adrs", { orderBy: { published_at: "desc" } }),
 		getEmDashCollection("incidents", { orderBy: { published_at: "desc" } }),
 	]);
+
+	if (Astro.cache?.enabled) {
+		Astro.cache.set(
+			mergeCacheHints([
+				articlesResult.cacheHint,
+				adrsResult.cacheHint,
+				incidentsResult.cacheHint,
+			]),
+		);
+	}
 
 	const [articleTags, adrTags, incidentTags] = await Promise.all([
 		getTermsForEntries("articles", articlesResult.entries.map((e) => e.data.id), "tag"),
